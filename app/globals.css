@@ -1,0 +1,143 @@
+@import "tailwindcss";
+@import "tw-animate-css";
+
+@custom-variant dark (&:is(.dark *));
+
+:root {
+  /* SmoothSend Brand Colors */
+  /* Primary: #7595FF (Light Blue) */
+  /* Secondary: #163188 (Dark Blue) */
+  
+  --background: #0D0E12;
+  --foreground: #EAECF2;
+  --card: #1A1B23;
+  --card-foreground: #EAECF2;
+  --popover: #1A1B23;
+  --popover-foreground: #EAECF2;
+  --primary: #7595FF;
+  --primary-foreground: #FFFFFF;
+  --secondary: #163188;
+  --secondary-foreground: #FFFFFF;
+  --muted: #2A2B35;
+  --muted-foreground: #9CA3AF;
+  --accent: #7595FF;
+  --accent-foreground: #FFFFFF;
+  --destructive: #EF4444;
+  --destructive-foreground: #FFFFFF;
+  --success: #10B981;
+  --success-foreground: #FFFFFF;
+  --border: #2A2B35;
+  --input: #2A2B35;
+  --ring: #7595FF;
+  --chart-1: #7595FF;
+  --chart-2: #163188;
+  --chart-3: #10B981;
+  --chart-4: #F59E0B;
+  --chart-5: #8B5CF6;
+  --radius: 0.75rem;
+}
+
+.dark {
+  /* Same as root for dark mode */
+  --background: #0D0E12;
+  --foreground: #EAECF2;
+  --card: #1A1B23;
+  --card-foreground: #EAECF2;
+  --popover: #1A1B23;
+  --popover-foreground: #EAECF2;
+  --primary: #7595FF;
+  --primary-foreground: #FFFFFF;
+  --secondary: #163188;
+  --secondary-foreground: #FFFFFF;
+  --muted: #2A2B35;
+  --muted-foreground: #9CA3AF;
+  --accent: #7595FF;
+  --accent-foreground: #FFFFFF;
+  --destructive: #EF4444;
+  --destructive-foreground: #FFFFFF;
+  --success: #10B981;
+  --success-foreground: #FFFFFF;
+  --border: #2A2B35;
+  --input: #2A2B35;
+  --ring: #7595FF;
+  --chart-1: #7595FF;
+  --chart-2: #163188;
+  --chart-3: #10B981;
+  --chart-4: #F59E0B;
+  --chart-5: #8B5CF6;
+}
+
+@theme inline {
+  /* optional: --font-sans, --font-serif, --font-mono if they are applied in the layout.tsx */
+  --font-sans: "Geist", "Geist Fallback";
+  --font-mono: "Geist Mono", "Geist Mono Fallback";
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --color-card: var(--card);
+  --color-card-foreground: var(--card-foreground);
+  --color-popover: var(--popover);
+  --color-popover-foreground: var(--popover-foreground);
+  --color-primary: var(--primary);
+  --color-primary-foreground: var(--primary-foreground);
+  --color-secondary: var(--secondary);
+  --color-secondary-foreground: var(--secondary-foreground);
+  --color-muted: var(--muted);
+  --color-muted-foreground: var(--muted-foreground);
+  --color-accent: var(--accent);
+  --color-accent-foreground: var(--accent-foreground);
+  --color-destructive: var(--destructive);
+  --color-destructive-foreground: var(--destructive-foreground);
+  --color-success: var(--success);
+  --color-success-foreground: var(--success-foreground);
+  --color-border: var(--border);
+  --color-input: var(--input);
+  --color-ring: var(--ring);
+  --color-chart-1: var(--chart-1);
+  --color-chart-2: var(--chart-2);
+  --color-chart-3: var(--chart-3);
+  --color-chart-4: var(--chart-4);
+  --color-chart-5: var(--chart-5);
+  --radius-sm: calc(var(--radius) - 4px);
+  --radius-md: calc(var(--radius) - 2px);
+  --radius-lg: var(--radius);
+  --radius-xl: calc(var(--radius) + 4px);
+  --color-sidebar: var(--sidebar);
+  --color-sidebar-foreground: var(--sidebar-foreground);
+  --color-sidebar-primary: var(--sidebar-primary);
+  --color-sidebar-primary-foreground: var(--sidebar-primary-foreground);
+  --color-sidebar-accent: var(--sidebar-accent);
+  --color-sidebar-accent-foreground: var(--sidebar-accent-foreground);
+  --color-sidebar-border: var(--sidebar-border);
+  --color-sidebar-ring: var(--sidebar-ring);
+}
+
+@layer base {
+  * {
+    @apply border-border outline-ring/50;
+  }
+  body {
+    @apply bg-background text-foreground;
+  }
+}
+
+.glass-card {
+  background: rgba(26, 27, 35, 0.6);
+  backdrop-filter: blur(16px);
+  border: 1px solid rgba(117, 149, 255, 0.1);
+  box-shadow: 0 8px 32px rgba(117, 149, 255, 0.05);
+}
+
+.gradient-text {
+  background: linear-gradient(135deg, #7595FF, #163188);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+}
+
+.gradient-bg {
+  background: linear-gradient(135deg, #7595FF, #163188);
+}
+
+.gradient-border {
+  border-image: linear-gradient(135deg, #7595FF, #163188) 1;
+}
