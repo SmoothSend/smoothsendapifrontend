@@ -1,13 +1,14 @@
 import { Header } from "@/components/header"
+import { Footer } from "@/components/footer"
 import { TransferCard } from "@/components/transfer-card"
 import { InfoSection } from "@/components/info-section"
 
 export default function Home() {
   return (
-    <main className="min-h-screen bg-gradient-to-br from-background via-background to-muted/20">
+    <main className="min-h-screen bg-gradient-to-br from-background via-background to-muted/20 flex flex-col">
       <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_top,_var(--tw-gradient-stops))] from-primary/10 via-transparent to-transparent pointer-events-none" />
 
-      <div className="relative">
+      <div className="relative flex-1">
         <Header />
 
         <div className="container mx-auto px-4 py-12 max-w-6xl">
@@ -28,6 +29,8 @@ export default function Home() {
           </div>
         </div>
       </div>
+
+      <Footer />
     </main>
   )
 }
