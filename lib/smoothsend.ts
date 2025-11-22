@@ -63,6 +63,13 @@ export interface GaslessTransactionResponse {
     assetType: string
     network: string
   }
+  // Enhanced error handling fields
+  error?: string
+  errorCode?: string
+  userMessage?: string
+  details?: string
+  requestId?: string
+  timestamp?: string
 }
 
 // ============================================================================
@@ -112,11 +119,13 @@ export class SmoothSendClient {
    */
   async submitSignedTransaction(
     transactionBytes: number[],
-    authenticatorBytes: number[]
+    authenticatorBytes: number[],
+    network: 'testnet' | 'mainnet' = 'testnet'
   ): Promise<GaslessTransactionResponse> {
     return this.request<GaslessTransactionResponse>('/gasless-transaction', {
       transactionBytes,
-      authenticatorBytes
+      authenticatorBytes,
+      network
     })
   }
 
@@ -206,18 +215,31 @@ export class SmoothSendClient {
  */
 export function handleAPIError(error: unknown): string {
   if (error instanceof SmoothSendError) {
+    // Use userMessage from API response if available (new format)
+    if (error.apiResponse?.userMessage) {
+      const requestId = error.apiResponse?.requestId
+      return requestId 
+        ? `${error.apiResponse.userMessage} (Request ID: ${requestId})`
+        : error.apiResponse.userMessage
+    }
+
+    // Fallback to old format
+    if (error.apiResponse?.message) {
+      return error.apiResponse.message
+    }
+
+    // Status code based messages
     switch (error.statusCode) {
       case 401:
         return 'Authentication failed. Invalid API key.'
       case 429:
         return 'Rate limit exceeded. Please try again later.'
       case 400:
-        if (error.apiResponse?.message) {
-          return error.apiResponse.message
-        }
         return 'Invalid request. Please check your input.'
       case 500:
         return 'Server error. Please try again later.'
+      case 503:
+        return 'Service temporarily unavailable. Please try again later.'
       default:
         return error.message || 'An unexpected error occurred.'
     }
@@ -243,5 +265,5 @@ export function handleAPIError(error: unknown): string {
  */
 export const smoothSendClient = new SmoothSendClient({
   apiUrl: config.smoothsend.apiUrl || 'https://proxy.smoothsend.xyz/api/v1/relayer',
-  apiKey: config.smoothsend.apiKey || 'no_gas_zJwibEbkH6OGWss7DkQZxvcaUuvl6uCV'
+  apiKey: config.smoothsend.apiKey || '' // Must be set in .env.local
 })
