@@ -52,18 +52,18 @@ export function TransferCard() {
 
   return (
     <div className="w-full max-w-md mx-auto">
-      <div className="phantom-card rounded-2xl p-8 space-y-8 relative overflow-hidden">
+      <div className="phantom-card rounded-3xl p-8 space-y-8 relative overflow-hidden backdrop-blur-xl">
         {/* Header with Logo */}
         <div className="text-center space-y-4">
-          <div className="w-20 h-20 mx-auto bg-white/5 rounded-2xl flex items-center justify-center shadow-lg shadow-black/20 backdrop-blur-sm border border-white/10">
+          <div className="w-20 h-20 mx-auto bg-background/50 rounded-2xl flex items-center justify-center shadow-lg shadow-black/5 dark:shadow-black/20 backdrop-blur-sm border border-border/50">
             <img
               src="/Logo Light.png"
               alt="SmoothSend"
               className="w-12 h-12 object-contain opacity-90"
             />
           </div>
-          <h2 className="text-2xl font-bold text-white tracking-tight">SmoothSend</h2>
-          <p className="text-gray-400 text-sm">
+          <h2 className="text-2xl font-bold text-foreground tracking-tight">SmoothSend</h2>
+          <p className="text-muted-foreground text-sm">
             Send tokens gasless on Aptos.
             <br />
             Connect your wallet to get started.
@@ -72,9 +72,9 @@ export function TransferCard() {
 
         <WalletConnect />
 
-        {connected && account && (
+        {connected && (
           <TransferForm
-            walletAddress={account.address.toString()}
+            walletAddress={account?.address?.toString() || ""}
             onSuccess={handleTransactionSuccess}
             onError={handleTransactionError}
             onAPICall={handleAPICall}
@@ -82,7 +82,13 @@ export function TransferCard() {
           />
         )}
 
-        {transaction && <TransactionStatus transaction={transaction} />}
+        {/* Transaction Status */}
+        {transaction && (
+          <TransactionStatus
+            transaction={transaction}
+            onClose={() => setTransaction(null)}
+          />
+        )}
         {error && (
           <div className="p-4 rounded-xl bg-red-500/10 border border-red-500/20 animate-in fade-in slide-in-from-top-2">
             <p className="text-sm text-red-400 font-medium flex items-center gap-2">

@@ -51,20 +51,20 @@ export function TransactionStatus({ transaction }: TransactionStatusProps) {
     <motion.div
       initial={{ opacity: 0, scale: 0.95 }}
       animate={{ opacity: 1, scale: 1 }}
-      className="phantom-card rounded-2xl p-6 relative overflow-hidden border-[#10B981]/20"
+      className="phantom-card rounded-2xl p-6 relative overflow-hidden border-green-500/20"
     >
       {/* Success Animation Background */}
       <div className="absolute inset-0 bg-[url('/confetti.png')] opacity-10 pointer-events-none mix-blend-overlay" />
-      <div className="absolute top-0 right-0 w-32 h-32 bg-[#10B981]/10 rounded-full blur-3xl -mr-16 -mt-16 pointer-events-none" />
+      <div className="absolute top-0 right-0 w-32 h-32 bg-green-500/10 rounded-full blur-3xl -mr-16 -mt-16 pointer-events-none" />
 
       <div className="flex items-start gap-4 relative z-10">
         <motion.div
           initial={{ scale: 0 }}
           animate={{ scale: 1 }}
           transition={{ type: "spring", stiffness: 200, damping: 15, delay: 0.2 }}
-          className="w-12 h-12 rounded-full bg-[#10B981]/20 flex items-center justify-center flex-shrink-0 border border-[#10B981]/30"
+          className="w-12 h-12 rounded-full bg-green-500/20 flex items-center justify-center flex-shrink-0 border border-green-500/30"
         >
-          <CheckCircle2 className="w-6 h-6 text-[#10B981]" />
+          <CheckCircle2 className="w-6 h-6 text-green-500" />
         </motion.div>
 
         <div className="flex-1 space-y-4">
@@ -73,7 +73,7 @@ export function TransactionStatus({ transaction }: TransactionStatusProps) {
               initial={{ opacity: 0, x: -10 }}
               animate={{ opacity: 1, x: 0 }}
               transition={{ delay: 0.3 }}
-              className="font-bold text-[#10B981] mb-1 text-lg"
+              className="font-bold text-green-500 mb-1 text-lg"
             >
               Transaction Successful!
             </motion.h4>
@@ -81,7 +81,7 @@ export function TransactionStatus({ transaction }: TransactionStatusProps) {
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}
               transition={{ delay: 0.4 }}
-              className="text-sm text-gray-400"
+              className="text-sm text-muted-foreground"
             >
               Your tokens have been sent successfully
             </motion.p>
@@ -91,33 +91,33 @@ export function TransactionStatus({ transaction }: TransactionStatusProps) {
             initial={{ opacity: 0, y: 10 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ delay: 0.5 }}
-            className="space-y-3 text-sm bg-[#22232A] rounded-xl p-4 border border-transparent"
+            className="space-y-3 text-sm bg-accent/50 rounded-xl p-4 border border-transparent"
           >
             <div className="flex justify-between">
-              <span className="text-gray-400">Amount</span>
-              <span className="font-medium text-white">{transaction.amount}</span>
+              <span className="text-muted-foreground">Amount</span>
+              <span className="font-medium text-foreground">{transaction.amount}</span>
             </div>
             <div className="flex justify-between">
-              <span className="text-gray-400">Recipient</span>
-              <span className="font-mono text-xs text-gray-300">
+              <span className="text-muted-foreground">Recipient</span>
+              <span className="font-mono text-xs text-muted-foreground">
                 {transaction.recipient.slice(0, 10)}...{transaction.recipient.slice(-8)}
               </span>
             </div>
             <div className="flex justify-between">
-              <span className="text-gray-400">Fee Paid</span>
-              <span className="font-medium text-[#10B981]">{transaction.fee}</span>
+              <span className="text-muted-foreground">Fee Paid</span>
+              <span className="font-medium text-green-500">{transaction.fee}</span>
             </div>
             <div className="flex justify-between items-center">
-              <span className="text-gray-400">Transaction Hash</span>
+              <span className="text-muted-foreground">Transaction Hash</span>
               <div className="flex items-center gap-2">
-                <span className="font-mono text-xs text-gray-300">{truncatedHash}</span>
+                <span className="font-mono text-xs text-muted-foreground">{truncatedHash}</span>
                 <button
                   onClick={copyToClipboard}
-                  className="p-1 hover:bg-[#2A2B35] rounded transition-colors text-gray-400 hover:text-white"
+                  className="p-1 hover:bg-accent rounded transition-colors text-muted-foreground hover:text-foreground"
                   title="Copy transaction hash"
                 >
                   {copied ? (
-                    <Check className="w-3 h-3 text-[#10B981]" />
+                    <Check className="w-3 h-3 text-green-500" />
                   ) : (
                     <Copy className="w-3 h-3" />
                   )}
@@ -131,7 +131,7 @@ export function TransactionStatus({ transaction }: TransactionStatusProps) {
             animate={{ opacity: 1 }}
             transition={{ delay: 0.6 }}
           >
-            <Button variant="outline" size="sm" className="w-full bg-[#2A2B35] hover:bg-[#32333E] border-0 text-white rounded-xl h-10" asChild>
+            <Button variant="outline" size="sm" className="w-full bg-secondary hover:bg-secondary/80 border-0 text-secondary-foreground rounded-xl h-10" asChild>
               <a href={explorerUrl} target="_blank" rel="noopener noreferrer">
                 View on Explorer
                 <ExternalLink className="w-4 h-4 ml-2" />

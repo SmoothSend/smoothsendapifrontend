@@ -28,7 +28,7 @@ export function WalletConnect() {
       await connect(walletName)
     } catch (error) {
       console.error("[WalletConnect] Connection failed:", error)
-      
+
       // User-friendly error messages
       let errorMessage = 'Unknown error'
       if (error instanceof Error) {
@@ -40,7 +40,7 @@ export function WalletConnect() {
           errorMessage = error.message
         }
       }
-      
+
       alert(`Failed to connect: ${errorMessage}`)
     }
   }
@@ -60,14 +60,14 @@ export function WalletConnect() {
   // Connected state - show wallet info
   if (connected && account) {
     return (
-      <div className="flex items-center justify-between p-4 rounded-xl bg-[#22232A] border border-transparent">
+      <div className="flex items-center justify-between p-4 rounded-xl bg-accent/50 border border-transparent">
         <div className="flex items-center gap-3">
-          <div className="w-10 h-10 rounded-full bg-[#7595FF]/20 flex items-center justify-center">
-            <WalletCards className="w-5 h-5 text-[#7595FF]" />
+          <div className="w-10 h-10 rounded-full bg-primary/20 flex items-center justify-center">
+            <WalletCards className="w-5 h-5 text-primary" />
           </div>
           <div>
-            <p className="text-sm font-medium text-white">Connected</p>
-            <p className="text-xs text-gray-400 font-mono">
+            <p className="text-sm font-medium text-foreground">Connected</p>
+            <p className="text-xs text-muted-foreground font-mono">
               {truncateAddress(account?.address?.toString())}
             </p>
           </div>
@@ -76,7 +76,7 @@ export function WalletConnect() {
           variant="ghost"
           size="sm"
           onClick={handleDisconnect}
-          className="text-gray-400 hover:text-white hover:bg-[#2A2B35]"
+          className="text-muted-foreground hover:text-foreground hover:bg-accent"
           title="Disconnect wallet"
         >
           <LogOut className="w-4 h-4" />
@@ -88,12 +88,12 @@ export function WalletConnect() {
   // Disconnected state - show connect button
   return (
     <div className="text-center space-y-6">
-      <div className="w-16 h-16 mx-auto rounded-2xl bg-[#7595FF]/10 flex items-center justify-center border border-[#7595FF]/20 shadow-lg shadow-[#7595FF]/5">
-        <WalletCards className="w-8 h-8 text-[#7595FF]" />
+      <div className="w-16 h-16 mx-auto rounded-2xl bg-primary/10 flex items-center justify-center border border-primary/20 shadow-lg shadow-primary/5">
+        <WalletCards className="w-8 h-8 text-primary" />
       </div>
       <div>
-        <h3 className="text-lg font-bold text-white mb-2">Connect Your Wallet</h3>
-        <p className="text-sm text-gray-400">
+        <h3 className="text-lg font-bold text-foreground mb-2">Connect Your Wallet</h3>
+        <p className="text-sm text-muted-foreground">
           Connect your Aptos wallet to get started
         </p>
       </div>
@@ -109,7 +109,7 @@ export function WalletConnect() {
         </DropdownMenuTrigger>
         <DropdownMenuContent
           align="center"
-          className="w-64"
+          className="w-64 bg-popover border-border/50 shadow-xl"
         >
           {/* List all available wallets (dynamic discovery) */}
           {wallets && wallets.length > 0 ? (
@@ -117,7 +117,7 @@ export function WalletConnect() {
               <DropdownMenuItem
                 key={wallet.name}
                 onClick={() => handleConnect(wallet.name)}
-                className="cursor-pointer flex items-center gap-3 p-3 hover:bg-muted"
+                className="cursor-pointer flex items-center gap-3 p-3 hover:bg-accent focus:bg-accent"
               >
                 {wallet.icon && (
                   <img
@@ -127,7 +127,7 @@ export function WalletConnect() {
                   />
                 )}
                 <div className="flex-1">
-                  <p className="font-medium">{wallet.name}</p>
+                  <p className="font-medium text-foreground">{wallet.name}</p>
                   <p className="text-xs text-muted-foreground">
                     {wallet.readyState === 'Installed' ? 'Installed' : 'Available'}
                   </p>

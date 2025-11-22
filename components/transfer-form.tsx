@@ -54,7 +54,7 @@ export function TransferForm({ walletAddress, onSuccess, onError, onAPICall, onN
   const [amount, setAmount] = useState("")
   const [tokens, setTokens] = useState<Token[]>(DEFAULT_TOKENS)
   const [selectedToken, setSelectedToken] = useState<Token>(DEFAULT_TOKENS[0])
-  const [network, setNetwork] = useState<"testnet" | "mainnet">("testnet")
+  const [network, setNetwork] = useState<"testnet" | "mainnet">("mainnet")
   const [isLoading, setIsLoading] = useState(false)
   const [isFetchingBalances, setIsFetchingBalances] = useState(false)
   const [feeEstimate, setFeeEstimate] = useState<number | null>(null)
@@ -68,9 +68,13 @@ export function TransferForm({ walletAddress, onSuccess, onError, onAPICall, onN
   }
 
   // Display fee based on estimate or network default
-  const fee = feeEstimate !== null && typeof feeEstimate === 'number'
-    ? (feeEstimate === 0 ? "FREE" : `$${feeEstimate.toFixed(2)}`)
-    : (network === "testnet" ? "FREE" : "$0.01")
+  const fee = network === "testnet"
+    ? "FREE"
+    : feeEstimate !== null && typeof feeEstimate === 'number'
+      ? `$${feeEstimate.toFixed(4)}` // Show actual estimate with more precision
+      : isEstimatingFee
+        ? "Estimating..."
+        : "~$0.01" // Show approximate when not estimated
 
   // Handle Max Button Click
   const handleMaxClick = () => {
@@ -78,13 +82,26 @@ export function TransferForm({ walletAddress, onSuccess, onError, onAPICall, onN
 
     let maxAmount = Number.parseFloat(selectedToken.balance)
 
-    // If mainnet, subtract fee (approximate $0.01 if not estimated yet)
+    // For mainnet, we need to reserve some amount for gas
     if (network === "mainnet") {
-      const feeAmount = feeEstimate || 0.01
-      maxAmount = Math.max(0, maxAmount - feeAmount)
+      // If we have a fee estimate, use it directly (converted to token units approx)
+      // Note: feeEstimate is in USD, so this is an approximation if token != USDC
+      // For simplicity/safety, we'll stick to a buffer but make it tighter if we have an estimate
+
+      // Better approach: Reserve a fixed "safe" amount of the token itself
+      // If it's USDC, $0.02 is 0.02 USDC. If it's APT, it's different.
+      // We'll use a conservative 0.02 buffer for now as a "fee" placeholder
+      const feeBuffer = 0.02
+
+      maxAmount = Math.max(0, maxAmount - feeBuffer)
     }
 
-    setAmount(maxAmount.toString())
+    // Format to appropriate decimal places
+    // Use floor to avoid rounding up which could exceed balance
+    const factor = Math.pow(10, selectedToken.decimals)
+    const flooredAmount = Math.floor(maxAmount * factor) / factor
+
+    setAmount(flooredAmount.toFixed(selectedToken.decimals))
   }
 
   // Validation states
@@ -115,10 +132,13 @@ export function TransferForm({ walletAddress, onSuccess, onError, onAPICall, onN
       setFeeEstimateError(null)
 
       try {
+        // Convert amount to base units (integer string)
+        const amountInBaseUnits = Math.round(Number.parseFloat(amount) * Math.pow(10, selectedToken.decimals)).toString()
+
         const estimateRequest = {
           sender: walletAddress,
           recipient,
-          amount,
+          amount: amountInBaseUnits, // Send base units
           assetType: selectedToken.assetType,
           network,
           decimals: selectedToken.decimals,
@@ -258,11 +278,15 @@ export function TransferForm({ walletAddress, onSuccess, onError, onAPICall, onN
     setIsLoading(true)
 
     try {
+      // Convert amount to base units (integer string)
+      // Use Math.round to handle floating point precision issues (e.g. 1.1 * 1e6 = 1100000.0000000002)
+      const amountInBaseUnits = Math.round(Number.parseFloat(amount) * Math.pow(10, selectedToken.decimals)).toString()
+
       // Call real API to estimate fee
       const estimateRequest = {
         sender: walletAddress,
         recipient,
-        amount,
+        amount: amountInBaseUnits, // Send base units (e.g. "1500000" for 1.5 USDC)
         assetType: selectedToken.assetType,
         network,
         decimals: selectedToken.decimals,
@@ -290,8 +314,6 @@ export function TransferForm({ walletAddress, onSuccess, onError, onAPICall, onN
       // GASLESS TRANSACTION FLOW
       // Mainnet: Use Script Composer (backend builds transaction with fee)
       // Testnet: Use simple transfer (no fee)
-
-      const amountInBaseUnits = (Number.parseFloat(amount) * Math.pow(10, selectedToken.decimals)).toString()
 
       if (network === 'mainnet') {
         // MAINNET: Use Script Composer mode
@@ -505,7 +527,7 @@ export function TransferForm({ walletAddress, onSuccess, onError, onAPICall, onN
   return (
     <form onSubmit={handleSubmit} className="space-y-6">
       <div className="flex items-center justify-between px-1">
-        <h3 className="text-sm font-medium text-gray-400 uppercase tracking-wider">Send Tokens</h3>
+        <h3 className="text-sm font-medium text-muted-foreground uppercase tracking-wider">Send Tokens</h3>
         <div className="flex items-center gap-2">
           <Button
             type="button"
@@ -513,7 +535,7 @@ export function TransferForm({ walletAddress, onSuccess, onError, onAPICall, onN
             size="sm"
             onClick={fetchTokenBalances}
             disabled={isFetchingBalances}
-            className="text-gray-500 hover:text-white hover:bg-[#2A2B35] transition-colors h-8 w-8 p-0 rounded-full"
+            className="text-muted-foreground hover:text-foreground hover:bg-accent transition-colors h-8 w-8 p-0 rounded-full"
           >
             <RefreshCw className={`w-4 h-4 ${isFetchingBalances ? "animate-spin" : ""}`} />
           </Button>
@@ -532,7 +554,7 @@ export function TransferForm({ walletAddress, onSuccess, onError, onAPICall, onN
             placeholder="Recipient Address (0x...)"
             value={recipient}
             onChange={(e) => setRecipient(e.target.value)}
-            className="phantom-input h-14 rounded-xl px-4 font-mono text-sm"
+            className="phantom-input h-14 rounded-xl px-4 font-mono text-sm bg-input/50 focus:bg-input transition-colors"
             required
           />
         </div>
@@ -540,26 +562,34 @@ export function TransferForm({ walletAddress, onSuccess, onError, onAPICall, onN
         <div className="space-y-2">
           <Label htmlFor="amount" className="sr-only">Amount</Label>
           <div className="flex gap-3">
-            <div className="relative flex-1">
+            <div className="relative flex-1 group">
               <Input
                 id="amount"
-                type="number"
-                step="any"
+                type="text"
+                inputMode="decimal"
+                pattern="[0-9]*\.?[0-9]*"
                 placeholder="0.00"
                 value={amount}
-                onChange={(e) => setAmount(e.target.value)}
-                className={`phantom-input h-14 rounded-xl px-4 text-lg font-medium ${hasInsufficientBalance || hasInvalidAmount ? "border-red-500/50 focus:border-red-500" : ""}`}
+                onChange={(e) => {
+                  // Allow decimals and handle input validation
+                  const value = e.target.value
+                  // Only allow numbers and one decimal point
+                  if (value === '' || /^\d*\.?\d*$/.test(value)) {
+                    setAmount(value)
+                  }
+                }}
+                className={`phantom-input h-14 rounded-xl px-4 text-lg font-medium bg-input/50 focus:bg-input transition-colors ${hasInsufficientBalance || hasInvalidAmount ? "border-destructive/50 focus:border-destructive" : ""}`}
                 required
               />
               <div className="absolute right-3 top-1/2 -translate-y-1/2 flex items-center gap-2">
                 <button
                   type="button"
                   onClick={handleMaxClick}
-                  className="text-xs font-bold text-[#7595FF] hover:text-[#6484EE] bg-[#7595FF]/10 hover:bg-[#7595FF]/20 px-2 py-1 rounded transition-colors"
+                  className="text-xs font-bold text-primary hover:text-primary/80 bg-primary/10 hover:bg-primary/20 px-2 py-1 rounded transition-colors"
                 >
                   MAX
                 </button>
-                <span className="text-sm text-gray-500 pointer-events-none">
+                <span className="text-sm text-muted-foreground pointer-events-none">
                   {selectedToken.symbol}
                 </span>
               </div>
@@ -569,29 +599,29 @@ export function TransferForm({ walletAddress, onSuccess, onError, onAPICall, onN
 
           <div className="flex justify-between px-2 text-xs">
             {selectedToken.balance && (
-              <p className="text-gray-500">
-                Balance: <span className="text-gray-300 font-medium">{selectedToken.balance} {selectedToken.symbol}</span>
+              <p className="text-muted-foreground">
+                Balance: <span className="text-foreground font-medium">{selectedToken.balance} {selectedToken.symbol}</span>
               </p>
             )}
             {hasInsufficientBalance && (
-              <p className="text-red-400 font-medium">
+              <p className="text-destructive font-medium">
                 Insufficient balance
               </p>
             )}
           </div>
         </div>
 
-        <div className="p-4 rounded-xl bg-[#22232A] border border-transparent">
+        <div className="p-4 rounded-xl bg-accent/50 border border-transparent">
           <div className="flex items-center justify-between text-sm">
-            <span className="text-gray-400">Network Fee</span>
+            <span className="text-muted-foreground">Network Fee</span>
             <div className="flex items-center gap-2">
               {isEstimatingFee ? (
                 <>
-                  <Loader2 className="w-3 h-3 animate-spin text-gray-500" />
-                  <span className="text-gray-500 text-xs">Estimating...</span>
+                  <Loader2 className="w-3 h-3 animate-spin text-muted-foreground" />
+                  <span className="text-muted-foreground text-xs">Estimating...</span>
                 </>
               ) : (
-                <span className={`font-semibold ${network === "testnet" || fee === "FREE" ? "text-green-400" : "text-white"}`}>
+                <span className={`font-semibold ${network === "testnet" || fee === "FREE" ? "text-green-500 dark:text-green-400" : "text-foreground"}`}>
                   {fee}
                 </span>
               )}
@@ -608,7 +638,7 @@ export function TransferForm({ walletAddress, onSuccess, onError, onAPICall, onN
       <Button
         type="submit"
         disabled={isLoading || !isFormValid}
-        className="w-full h-14 text-base font-semibold phantom-button rounded-xl disabled:opacity-50 disabled:cursor-not-allowed"
+        className="w-full h-14 text-base font-semibold phantom-button rounded-xl disabled:opacity-50 disabled:cursor-not-allowed relative overflow-hidden"
       >
         {isLoading ? (
           <>
