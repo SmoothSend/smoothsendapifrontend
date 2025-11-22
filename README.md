@@ -261,11 +261,17 @@ Create `.env.local`:
 
 ```env
 NEXT_PUBLIC_SMOOTHSEND_API_URL=https://proxy.smoothsend.xyz/api/v1/relayer
-NEXT_PUBLIC_SMOOTHSEND_API_KEY=your_api_key_here
+NEXT_PUBLIC_SMOOTHSEND_API_KEY=pk_nogas_xxx  # Your PUBLIC key (safe for frontend)
 NEXT_PUBLIC_NETWORK=testnet
 ```
 
-Get your API key at [dashboard.smoothsend.xyz](https://dashboard.smoothsend.xyz)
+**🔑 API Key System:**
+- Get your **Public Key** (`pk_nogas_xxx`) from [dashboard.smoothsend.xyz](https://dashboard.smoothsend.xyz)
+- Public keys are safe to use in frontend applications
+- Never use your Secret Key (`sk_nogas_xxx`) in frontend code
+- See [API_KEYS.md](./API_KEYS.md) for detailed guide
+
+**⚠️ Important:** If you're using an old API key format (`no_gas_xxx`), update to the new format for mainnet compatibility.
 
 ### 3. Initialize Client
 
@@ -429,6 +435,15 @@ Configures Aptos wallet adapter:
 - **Twitter**: [@smoothsend](https://x.com/smoothsend)
 - **Aptos Docs**: [aptos.dev](https://aptos.dev)
 - **Script Composer**: [Aptos Script Composer SDK](https://github.com/aptos-labs/aptos-ts-sdk/tree/main/packages/script-composer-sdk)
+- **Wallet Standard**: [Aptos Wallet Standard (AIP-62)](https://aptos.dev/standards/wallets)
+
+### 📖 Project Documentation
+
+- **[WALLET_STANDARD.md](./WALLET_STANDARD.md)** - Complete Aptos Wallet Standard implementation guide
+- **[WALLET_STANDARD_SUMMARY.md](./WALLET_STANDARD_SUMMARY.md)** - Quick reference for wallet integration
+- **[API_KEYS.md](./API_KEYS.md)** - API key system and security guide
+- **[PROJECT_ARCHITECTURE.md](./PROJECT_ARCHITECTURE.md)** - System architecture and comparison
+- **[MIGRATION_NOTES.md](./MIGRATION_NOTES.md)** - API key migration details
 
 ---
 

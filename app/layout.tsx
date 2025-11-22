@@ -9,9 +9,25 @@ import "./globals.css"
 const inter = Inter({ subsets: ["latin"] })
 
 export const metadata: Metadata = {
-  title: "SmoothSend - Gasless Token Transfers",
-  description: "Send tokens without gas fees on Aptos",
-  generator: "v0.app",
+  title: "SmoothSend - Gasless Aptos Transfers",
+  description: "Send tokens on Aptos without gas fees. Experience the smoothest way to transfer assets on testnet and mainnet.",
+  keywords: ["Aptos", "Gasless", "Crypto", "Blockchain", "SmoothSend", "Wallet", "Transfer", "DeFi"],
+  openGraph: {
+    title: "SmoothSend - Gasless Aptos Transfers",
+    description: "Send tokens on Aptos without gas fees. Experience the smoothest way to transfer assets.",
+    type: "website",
+    url: "https://demo.smoothsend.xyz",
+  },
+  twitter: {
+    card: "summary_large_image",
+    title: "SmoothSend - Gasless Aptos Transfers",
+    description: "Send tokens on Aptos without gas fees.",
+  },
+  icons: {
+    icon: "/Logo Light.png",
+    shortcut: "/Logo Light.png",
+    apple: "/Logo Light.png",
+  },
 }
 
 export default function RootLayout({

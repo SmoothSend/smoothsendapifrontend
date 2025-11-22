@@ -51,8 +51,25 @@ export function TransferCard() {
   }
 
   return (
-    <div className="space-y-6">
-      <Card className="glass-card p-6 space-y-6">
+    <div className="w-full max-w-md mx-auto">
+      <div className="phantom-card rounded-2xl p-8 space-y-8 relative overflow-hidden">
+        {/* Header with Logo */}
+        <div className="text-center space-y-4">
+          <div className="w-20 h-20 mx-auto bg-white/5 rounded-2xl flex items-center justify-center shadow-lg shadow-black/20 backdrop-blur-sm border border-white/10">
+            <img
+              src="/Logo Light.png"
+              alt="SmoothSend"
+              className="w-12 h-12 object-contain opacity-90"
+            />
+          </div>
+          <h2 className="text-2xl font-bold text-white tracking-tight">SmoothSend</h2>
+          <p className="text-gray-400 text-sm">
+            Send tokens gasless on Aptos.
+            <br />
+            Connect your wallet to get started.
+          </p>
+        </div>
+
         <WalletConnect />
 
         {connected && account && (
@@ -67,11 +84,13 @@ export function TransferCard() {
 
         {transaction && <TransactionStatus transaction={transaction} />}
         {error && (
-          <div className="p-4 rounded-lg bg-destructive/10 border border-destructive/20">
-            <p className="text-sm text-destructive font-medium">{error}</p>
+          <div className="p-4 rounded-xl bg-red-500/10 border border-red-500/20 animate-in fade-in slide-in-from-top-2">
+            <p className="text-sm text-red-400 font-medium flex items-center gap-2">
+              <span className="text-lg">⚠️</span> {error}
+            </p>
           </div>
         )}
-      </Card>
+      </div>
 
       {apiCalls.length > 0 && <APIDisplay calls={apiCalls} />}
     </div>

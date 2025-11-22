@@ -4,8 +4,8 @@
 
 export const config = {
   smoothsend: {
-    apiUrl: process.env.NEXT_PUBLIC_SMOOTHSEND_API_URL || 'https://proxy.smoothsend.xyz/api/v1/relayer',
-    apiKey: process.env.NEXT_PUBLIC_SMOOTHSEND_API_KEY || 'no_gas_xxx'
+    apiUrl: process.env.NEXT_PUBLIC_SMOOTHSEND_API_URL,
+    apiKey: process.env.NEXT_PUBLIC_SMOOTHSEND_API_KEY 
   },
   defaultNetwork: (process.env.NEXT_PUBLIC_NETWORK || 'testnet') as 'testnet' | 'mainnet',
   isDevelopment: process.env.NODE_ENV === 'development'

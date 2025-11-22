@@ -29,6 +29,7 @@ export type Token = {
   decimals: number
   assetType: string
   balance?: string
+  logo?: string
 }
 
 // USDC asset metadata addresses for each network
@@ -38,7 +39,13 @@ const USDC_ADDRESSES = {
 }
 
 const DEFAULT_TOKENS: Token[] = [
-  { symbol: "USDC", name: "USD Coin", decimals: 6, assetType: USDC_ADDRESSES.testnet },
+  {
+    symbol: "USDC",
+    name: "USD Coin",
+    decimals: 6,
+    assetType: USDC_ADDRESSES.testnet,
+    logo: "https://raw.githubusercontent.com/trustwallet/assets/master/blockchains/ethereum/assets/0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48/logo.png"
+  },
 ]
 
 export function TransferForm({ walletAddress, onSuccess, onError, onAPICall, onNetworkChange }: TransferFormProps) {
@@ -64,6 +71,21 @@ export function TransferForm({ walletAddress, onSuccess, onError, onAPICall, onN
   const fee = feeEstimate !== null && typeof feeEstimate === 'number'
     ? (feeEstimate === 0 ? "FREE" : `$${feeEstimate.toFixed(2)}`)
     : (network === "testnet" ? "FREE" : "$0.01")
+
+  // Handle Max Button Click
+  const handleMaxClick = () => {
+    if (!selectedToken.balance) return
+
+    let maxAmount = Number.parseFloat(selectedToken.balance)
+
+    // If mainnet, subtract fee (approximate $0.01 if not estimated yet)
+    if (network === "mainnet") {
+      const feeAmount = feeEstimate || 0.01
+      maxAmount = Math.max(0, maxAmount - feeAmount)
+    }
+
+    setAmount(maxAmount.toString())
+  }
 
   // Validation states
   const amountNum = Number.parseFloat(amount)
@@ -127,10 +149,16 @@ export function TransferForm({ walletAddress, onSuccess, onError, onAPICall, onN
 
       // Use the correct USDC address for the current network
       const currentNetworkTokens = [
-        { symbol: "USDC", name: "USD Coin", decimals: 6, assetType: USDC_ADDRESSES[network] }
+        {
+          symbol: "USDC",
+          name: "USD Coin",
+          decimals: 6,
+          assetType: USDC_ADDRESSES[network],
+          logo: "https://raw.githubusercontent.com/trustwallet/assets/master/blockchains/ethereum/assets/0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48/logo.png"
+        }
       ]
 
-      const tokensWithBalances = currentNetworkTokens.map((token) => {
+      const tokensWithBalances: Token[] = currentNetworkTokens.map((token) => {
         const balance = balances.find((b) => b.asset_type === token.assetType)
         return {
           ...token,
@@ -318,13 +346,15 @@ export function TransferForm({ walletAddress, onSuccess, onError, onAPICall, onN
         // Step 3: Submit signed transaction
         const authenticatorBytes = signResponse.authenticator.bcsToBytes()
 
-        console.log('[SmoothSend] Authenticator bytes length:', authenticatorBytes.length)
-        console.log('[SmoothSend] Transaction bytes length:', buildResponse.transactionBytes.length)
+        console.log('[SmoothSend] Submitting signed transaction...')
 
         const submitResponse = await smoothSendClient.submitSignedTransaction(
           buildResponse.transactionBytes,
-          Array.from(authenticatorBytes)
+          Array.from(authenticatorBytes),
+          network  // ✅ Pass network parameter for submission!
         )
+
+        console.log('[SmoothSend] Submit response:', submitResponse)
 
         onAPICall({
           endpoint: "POST /api/v1/relayer/gasless-transaction (Script Composer submit)",
@@ -334,8 +364,17 @@ export function TransferForm({ walletAddress, onSuccess, onError, onAPICall, onN
         })
 
         if (!submitResponse.success) {
-          const errorMsg = submitResponse.message || submitResponse.error || 'Transaction submission failed'
-          console.error('[SmoothSend] Mainnet submit error:', submitResponse)
+          const errorMsg = submitResponse.message || (submitResponse as any).error || 'Transaction submission failed'
+          console.error('[SmoothSend] Submit error:', {
+            response: submitResponse,
+            message: errorMsg
+          })
+
+          // Check if it's a sequence number error
+          if ((submitResponse as any).details && (submitResponse as any).details.includes('SEQUENCE_NUMBER_TOO_OLD')) {
+            throw new Error('Transaction expired. Please try again - your wallet sequence number changed.')
+          }
+
           throw new Error(`Mainnet transaction failed: ${errorMsg}`)
         }
 
@@ -373,12 +412,15 @@ export function TransferForm({ walletAddress, onSuccess, onError, onAPICall, onN
         // TESTNET: Use simple transfer (no fee, relayer sponsors gas)
         console.log('[SmoothSend] Testnet: Using simple transfer...')
 
-        // Step 1: Initialize Aptos SDK
+        // Step 1: Initialize Aptos SDK with correct network
         const { Aptos, AptosConfig, Network: AptosNetwork } = await import('@aptos-labs/ts-sdk')
-        const config = new AptosConfig({ network: AptosNetwork.TESTNET })
+
+        // Use the correct network based on user selection
+        const aptosNetwork = AptosNetwork.TESTNET
+        const config = new AptosConfig({ network: aptosNetwork })
         const aptos = new Aptos(config)
 
-        console.log('[SmoothSend] Building transaction with fee payer...')
+        console.log('[SmoothSend] Building transaction with fee payer for', network, '...')
 
         // Step 2: Build transaction on frontend with withFeePayer flag
         const rawTransaction = await aptos.transaction.build.simple({
@@ -462,8 +504,8 @@ export function TransferForm({ walletAddress, onSuccess, onError, onAPICall, onN
 
   return (
     <form onSubmit={handleSubmit} className="space-y-6">
-      <div className="flex items-center justify-between">
-        <h3 className="text-lg font-semibold">Send Tokens</h3>
+      <div className="flex items-center justify-between px-1">
+        <h3 className="text-sm font-medium text-gray-400 uppercase tracking-wider">Send Tokens</h3>
         <div className="flex items-center gap-2">
           <Button
             type="button"
@@ -471,7 +513,7 @@ export function TransferForm({ walletAddress, onSuccess, onError, onAPICall, onN
             size="sm"
             onClick={fetchTokenBalances}
             disabled={isFetchingBalances}
-            className="text-muted-foreground hover:text-foreground"
+            className="text-gray-500 hover:text-white hover:bg-[#2A2B35] transition-colors h-8 w-8 p-0 rounded-full"
           >
             <RefreshCw className={`w-4 h-4 ${isFetchingBalances ? "animate-spin" : ""}`} />
           </Button>
@@ -484,68 +526,80 @@ export function TransferForm({ walletAddress, onSuccess, onError, onAPICall, onN
 
       <div className="space-y-4">
         <div className="space-y-2">
-          <Label htmlFor="recipient">Recipient Address</Label>
+          <Label htmlFor="recipient" className="sr-only">Recipient Address</Label>
           <Input
             id="recipient"
-            placeholder="0x..."
+            placeholder="Recipient Address (0x...)"
             value={recipient}
             onChange={(e) => setRecipient(e.target.value)}
-            className="font-mono text-sm"
+            className="phantom-input h-14 rounded-xl px-4 font-mono text-sm"
             required
           />
         </div>
 
         <div className="space-y-2">
-          <Label htmlFor="amount">Amount</Label>
-          <div className="flex gap-2">
-            <Input
-              id="amount"
-              type="number"
-              step="any"
-              placeholder="0.00"
-              value={amount}
-              onChange={(e) => setAmount(e.target.value)}
-              className={`flex-1 ${hasInsufficientBalance || hasInvalidAmount ? "border-destructive focus-visible:ring-destructive" : ""}`}
-              required
-            />
+          <Label htmlFor="amount" className="sr-only">Amount</Label>
+          <div className="flex gap-3">
+            <div className="relative flex-1">
+              <Input
+                id="amount"
+                type="number"
+                step="any"
+                placeholder="0.00"
+                value={amount}
+                onChange={(e) => setAmount(e.target.value)}
+                className={`phantom-input h-14 rounded-xl px-4 text-lg font-medium ${hasInsufficientBalance || hasInvalidAmount ? "border-red-500/50 focus:border-red-500" : ""}`}
+                required
+              />
+              <div className="absolute right-3 top-1/2 -translate-y-1/2 flex items-center gap-2">
+                <button
+                  type="button"
+                  onClick={handleMaxClick}
+                  className="text-xs font-bold text-[#7595FF] hover:text-[#6484EE] bg-[#7595FF]/10 hover:bg-[#7595FF]/20 px-2 py-1 rounded transition-colors"
+                >
+                  MAX
+                </button>
+                <span className="text-sm text-gray-500 pointer-events-none">
+                  {selectedToken.symbol}
+                </span>
+              </div>
+            </div>
             <TokenSelector tokens={tokens} selectedToken={selectedToken} onSelect={setSelectedToken} />
           </div>
-          {selectedToken.balance && (
-            <p className="text-xs text-muted-foreground">
-              Balance: {selectedToken.balance} {selectedToken.symbol}
-            </p>
-          )}
-          {hasInsufficientBalance && (
-            <p className="text-xs text-destructive">
-              Insufficient balance. You have {selectedToken.balance} {selectedToken.symbol}
-            </p>
-          )}
-          {hasInvalidAmount && (
-            <p className="text-xs text-destructive">
-              Please enter a valid amount greater than 0
-            </p>
-          )}
+
+          <div className="flex justify-between px-2 text-xs">
+            {selectedToken.balance && (
+              <p className="text-gray-500">
+                Balance: <span className="text-gray-300 font-medium">{selectedToken.balance} {selectedToken.symbol}</span>
+              </p>
+            )}
+            {hasInsufficientBalance && (
+              <p className="text-red-400 font-medium">
+                Insufficient balance
+              </p>
+            )}
+          </div>
         </div>
 
-        <div className="p-4 rounded-lg bg-muted/50 border border-border">
+        <div className="p-4 rounded-xl bg-[#22232A] border border-transparent">
           <div className="flex items-center justify-between text-sm">
-            <span className="text-muted-foreground">Network Fee</span>
+            <span className="text-gray-400">Network Fee</span>
             <div className="flex items-center gap-2">
               {isEstimatingFee ? (
                 <>
-                  <Loader2 className="w-3 h-3 animate-spin text-muted-foreground" />
-                  <span className="text-muted-foreground text-xs">Estimating...</span>
+                  <Loader2 className="w-3 h-3 animate-spin text-gray-500" />
+                  <span className="text-gray-500 text-xs">Estimating...</span>
                 </>
               ) : (
-                <span className={`font-semibold ${network === "testnet" || fee === "FREE" ? "text-success" : "text-foreground"}`}>
+                <span className={`font-semibold ${network === "testnet" || fee === "FREE" ? "text-green-400" : "text-white"}`}>
                   {fee}
                 </span>
               )}
             </div>
           </div>
           {feeEstimateError && (
-            <p className="text-xs text-yellow-600 dark:text-yellow-500 mt-2">
-              ⚠️ Fee estimation failed: {feeEstimateError}
+            <p className="text-xs text-yellow-500 mt-2 flex items-center gap-1">
+              <span>⚠️</span> {feeEstimateError}
             </p>
           )}
         </div>
@@ -554,17 +608,17 @@ export function TransferForm({ walletAddress, onSuccess, onError, onAPICall, onN
       <Button
         type="submit"
         disabled={isLoading || !isFormValid}
-        className="w-full bg-gradient-to-r from-primary to-secondary hover:opacity-90 transition-opacity disabled:opacity-50"
+        className="w-full h-14 text-base font-semibold phantom-button rounded-xl disabled:opacity-50 disabled:cursor-not-allowed"
       >
         {isLoading ? (
           <>
-            <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-            Sending...
+            <Loader2 className="w-5 h-5 mr-2 animate-spin" />
+            Processing...
           </>
         ) : (
           <>
-            <Send className="w-4 h-4 mr-2" />
-            Send Tokens
+            <Send className="w-5 h-5 mr-2" />
+            Send {amount ? `${amount} ${selectedToken.symbol}` : "Tokens"}
           </>
         )}
       </Button>

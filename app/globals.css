@@ -1,143 +1,96 @@
 @import "tailwindcss";
-@import "tw-animate-css";
 
-@custom-variant dark (&:is(.dark *));
+@theme {
+  /* Brand Palette */
+  --color-background: #0D0E12;
+  --color-foreground: #EAECF2;
 
-:root {
-  /* SmoothSend Brand Colors */
-  /* Primary: #7595FF (Light Blue) */
-  /* Secondary: #163188 (Dark Blue) */
-  
-  --background: #0D0E12;
-  --foreground: #EAECF2;
-  --card: #1A1B23;
-  --card-foreground: #EAECF2;
-  --popover: #1A1B23;
-  --popover-foreground: #EAECF2;
-  --primary: #7595FF;
-  --primary-foreground: #FFFFFF;
-  --secondary: #163188;
-  --secondary-foreground: #FFFFFF;
-  --muted: #2A2B35;
-  --muted-foreground: #9CA3AF;
-  --accent: #7595FF;
-  --accent-foreground: #FFFFFF;
-  --destructive: #EF4444;
-  --destructive-foreground: #FFFFFF;
-  --success: #10B981;
-  --success-foreground: #FFFFFF;
-  --border: #2A2B35;
-  --input: #2A2B35;
-  --ring: #7595FF;
-  --chart-1: #7595FF;
-  --chart-2: #163188;
-  --chart-3: #10B981;
-  --chart-4: #F59E0B;
-  --chart-5: #8B5CF6;
-  --radius: 0.75rem;
+  --color-card: #18191E;
+  /* Slightly lighter than background for card */
+  --color-card-foreground: #EAECF2;
+
+  --color-popover: #18191E;
+  --color-popover-foreground: #EAECF2;
+
+  --color-primary: #7595FF;
+  /* Brand Light Blue */
+  --color-primary-foreground: #FFFFFF;
+
+  --color-secondary: #163188;
+  /* Brand Dark Blue */
+  --color-secondary-foreground: #FFFFFF;
+
+  --color-muted: #2A2B35;
+  --color-muted-foreground: #9CA3AF;
+
+  --color-accent: #2A2B35;
+  --color-accent-foreground: #EAECF2;
+
+  --color-destructive: #EF4444;
+  --color-destructive-foreground: #FFFFFF;
+
+  --color-border: #2A2B35;
+  --color-input: #22232A;
+  /* Dark input background */
+  --color-ring: #7595FF;
+
+  --color-success: #10B981;
+  --color-success-foreground: #FFFFFF;
+
+  --radius: 1rem;
+  /* More rounded corners like Phantom */
 }
 
-.dark {
-  /* Same as root for dark mode */
-  --background: #0D0E12;
-  --foreground: #EAECF2;
-  --card: #1A1B23;
-  --card-foreground: #EAECF2;
-  --popover: #1A1B23;
-  --popover-foreground: #EAECF2;
-  --primary: #7595FF;
-  --primary-foreground: #FFFFFF;
-  --secondary: #163188;
-  --secondary-foreground: #FFFFFF;
-  --muted: #2A2B35;
-  --muted-foreground: #9CA3AF;
-  --accent: #7595FF;
-  --accent-foreground: #FFFFFF;
-  --destructive: #EF4444;
-  --destructive-foreground: #FFFFFF;
-  --success: #10B981;
-  --success-foreground: #FFFFFF;
-  --border: #2A2B35;
-  --input: #2A2B35;
-  --ring: #7595FF;
-  --chart-1: #7595FF;
-  --chart-2: #163188;
-  --chart-3: #10B981;
-  --chart-4: #F59E0B;
-  --chart-5: #8B5CF6;
-}
+@layer utilities {
+  .phantom-card {
+    @apply bg-[#18191E] border border-[#2A2B35] shadow-2xl shadow-black/50;
+  }
 
-@theme inline {
-  /* optional: --font-sans, --font-serif, --font-mono if they are applied in the layout.tsx */
-  --font-sans: "Geist", "Geist Fallback";
-  --font-mono: "Geist Mono", "Geist Mono Fallback";
-  --color-background: var(--background);
-  --color-foreground: var(--foreground);
-  --color-card: var(--card);
-  --color-card-foreground: var(--card-foreground);
-  --color-popover: var(--popover);
-  --color-popover-foreground: var(--popover-foreground);
-  --color-primary: var(--primary);
-  --color-primary-foreground: var(--primary-foreground);
-  --color-secondary: var(--secondary);
-  --color-secondary-foreground: var(--secondary-foreground);
-  --color-muted: var(--muted);
-  --color-muted-foreground: var(--muted-foreground);
-  --color-accent: var(--accent);
-  --color-accent-foreground: var(--accent-foreground);
-  --color-destructive: var(--destructive);
-  --color-destructive-foreground: var(--destructive-foreground);
-  --color-success: var(--success);
-  --color-success-foreground: var(--success-foreground);
-  --color-border: var(--border);
-  --color-input: var(--input);
-  --color-ring: var(--ring);
-  --color-chart-1: var(--chart-1);
-  --color-chart-2: var(--chart-2);
-  --color-chart-3: var(--chart-3);
-  --color-chart-4: var(--chart-4);
-  --color-chart-5: var(--chart-5);
-  --radius-sm: calc(var(--radius) - 4px);
-  --radius-md: calc(var(--radius) - 2px);
-  --radius-lg: var(--radius);
-  --radius-xl: calc(var(--radius) + 4px);
-  --color-sidebar: var(--sidebar);
-  --color-sidebar-foreground: var(--sidebar-foreground);
-  --color-sidebar-primary: var(--sidebar-primary);
-  --color-sidebar-primary-foreground: var(--sidebar-primary-foreground);
-  --color-sidebar-accent: var(--sidebar-accent);
-  --color-sidebar-accent-foreground: var(--sidebar-accent-foreground);
-  --color-sidebar-border: var(--sidebar-border);
-  --color-sidebar-ring: var(--sidebar-ring);
+  .phantom-input {
+    @apply bg-[#22232A] border border-transparent focus:border-[#7595FF] focus:ring-1 focus:ring-[#7595FF] transition-all duration-200 text-[#EAECF2] placeholder:text-gray-500;
+  }
+
+  .phantom-button {
+    @apply bg-[#7595FF] hover:bg-[#6484EE] text-white font-semibold shadow-lg shadow-[#7595FF]/20 transition-all duration-200 active:scale-[0.98];
+  }
+
+  .phantom-button-secondary {
+    @apply bg-[#2A2B35] hover:bg-[#32333E] text-[#EAECF2] font-medium transition-all duration-200;
+  }
+
+  .mesh-gradient {
+    background-color: #0D0E12;
+    background-image:
+      radial-gradient(at 0% 0%, hsla(226, 72%, 31%, 0.15) 0, transparent 50%),
+      radial-gradient(at 100% 100%, hsla(226, 100%, 73%, 0.1) 0, transparent 50%);
+  }
 }
 
 @layer base {
   * {
-    @apply border-border outline-ring/50;
+    @apply border-border;
   }
+
   body {
     @apply bg-background text-foreground;
+    font-feature-settings: "rlig" 1, "calt" 1;
   }
 }
 
-.glass-card {
-  background: rgba(26, 27, 35, 0.6);
-  backdrop-filter: blur(16px);
-  border: 1px solid rgba(117, 149, 255, 0.1);
-  box-shadow: 0 8px 32px rgba(117, 149, 255, 0.05);
+/* Custom Scrollbar */
+::-webkit-scrollbar {
+  width: 8px;
 }
 
-.gradient-text {
-  background: linear-gradient(135deg, #7595FF, #163188);
-  -webkit-background-clip: text;
-  -webkit-text-fill-color: transparent;
-  background-clip: text;
+::-webkit-scrollbar-track {
+  background: transparent;
 }
 
-.gradient-bg {
-  background: linear-gradient(135deg, #7595FF, #163188);
+::-webkit-scrollbar-thumb {
+  background: #2A2B35;
+  border-radius: 4px;
 }
 
-.gradient-border {
-  border-image: linear-gradient(135deg, #7595FF, #163188) 1;
+::-webkit-scrollbar-thumb:hover {
+  background: #3A3B45;
 }
