@@ -13,30 +13,31 @@ export default function Home() {
         <Header />
 
         <div className="container mx-auto px-4 py-12 flex-1 flex flex-col items-center justify-center gap-12 max-w-6xl">
-          <div className="grid lg:grid-cols-2 gap-16 items-center w-full">
-            {/* Left Column: Main Action */}
+          <div className="flex flex-col items-center gap-24 w-full">
+            {/* Hero Section: Transfer Card Only */}
             <motion.div
-              initial={{ opacity: 0, scale: 0.95 }}
-              animate={{ opacity: 1, scale: 1 }}
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
               transition={{ duration: 0.5 }}
-              className="w-full flex justify-center lg:justify-end"
+              className="w-full flex justify-center"
             >
               <TransferCard />
             </motion.div>
 
-            {/* Right Column: Info & Context */}
+            {/* Info Section: Below the fold */}
             <motion.div
-              initial={{ opacity: 0, x: 20 }}
-              animate={{ opacity: 1, x: 0 }}
-              transition={{ delay: 0.2, duration: 0.5 }}
-              className="space-y-8 max-w-md mx-auto lg:mx-0"
+              initial={{ opacity: 0 }}
+              whileInView={{ opacity: 1 }}
+              viewport={{ once: true }}
+              transition={{ duration: 0.5 }}
+              className="w-full max-w-4xl space-y-16 text-center"
             >
-              <div className="space-y-4 text-center lg:text-left">
-                <h1 className="text-4xl md:text-5xl font-bold tracking-tight text-white">
+              <div className="space-y-6">
+                <h1 className="text-4xl md:text-5xl font-bold tracking-tight text-foreground">
                   Send Tokens <br />
-                  <span className="text-[#7595FF]">Without Gas Fees</span>
+                  <span className="text-primary">Without Gas Fees</span>
                 </h1>
-                <p className="text-lg text-gray-400 leading-relaxed">
+                <p className="text-lg text-muted-foreground leading-relaxed max-w-2xl mx-auto">
                   Experience the smoothest way to send assets on Aptos.
                   No gas required on testnet, just pennies on mainnet.
                 </p>

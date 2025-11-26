@@ -9,9 +9,10 @@ import { motion } from "framer-motion"
 
 type TransactionStatusProps = {
   transaction: TransactionResult
+  onClose: () => void
 }
 
-export function TransactionStatus({ transaction }: TransactionStatusProps) {
+export function TransactionStatus({ transaction, onClose }: TransactionStatusProps) {
   const [copied, setCopied] = useState(false)
   const { toast } = useToast()
 
@@ -54,7 +55,6 @@ export function TransactionStatus({ transaction }: TransactionStatusProps) {
       className="phantom-card rounded-2xl p-6 relative overflow-hidden border-green-500/20"
     >
       {/* Success Animation Background */}
-      <div className="absolute inset-0 bg-[url('/confetti.png')] opacity-10 pointer-events-none mix-blend-overlay" />
       <div className="absolute top-0 right-0 w-32 h-32 bg-green-500/10 rounded-full blur-3xl -mr-16 -mt-16 pointer-events-none" />
 
       <div className="flex items-start gap-4 relative z-10">
@@ -130,12 +130,27 @@ export function TransactionStatus({ transaction }: TransactionStatusProps) {
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             transition={{ delay: 0.6 }}
+            className="flex gap-3"
           >
-            <Button variant="outline" size="sm" className="w-full bg-secondary hover:bg-secondary/80 border-0 text-secondary-foreground rounded-xl h-10" asChild>
+            <Button
+              variant="outline"
+              size="sm"
+              className="flex-1 bg-secondary hover:bg-secondary/80 border-0 text-secondary-foreground rounded-xl h-10"
+              asChild
+            >
               <a href={explorerUrl} target="_blank" rel="noopener noreferrer">
                 View on Explorer
                 <ExternalLink className="w-4 h-4 ml-2" />
               </a>
+            </Button>
+
+            <Button
+              variant="default"
+              size="sm"
+              className="flex-1 phantom-button rounded-xl h-10"
+              onClick={onClose}
+            >
+              Send Another
             </Button>
           </motion.div>
         </div>

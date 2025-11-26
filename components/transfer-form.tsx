@@ -5,11 +5,12 @@ import type React from "react"
 import { useState, useEffect } from "react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
+import { Textarea } from "@/components/ui/textarea"
 import { Label } from "@/components/ui/label"
 import { TokenSelector } from "@/components/token-selector"
 import { NetworkBadge } from "@/components/network-badge"
 import { Send, Loader2, RefreshCw } from "lucide-react"
-import type { TransactionResult, APICall } from "./transfer-card"
+import type { TransactionResult } from "./transfer-card"
 import { getCoinBalances, parseCoinType } from "@/lib/aptos-client"
 import { useToast } from "@/hooks/use-toast"
 import { smoothSendClient, handleAPIError } from "@/lib/smoothsend"
@@ -19,8 +20,8 @@ type TransferFormProps = {
   walletAddress: string
   onSuccess: (result: TransactionResult) => void
   onError: (error: string) => void
-  onAPICall: (call: APICall) => void
   onNetworkChange?: () => void
+  initialToken?: Token | null // Added prop
 }
 
 export type Token = {
@@ -30,36 +31,84 @@ export type Token = {
   assetType: string
   balance?: string
   logo?: string
+  coingeckoId?: string
 }
 
-// USDC asset metadata addresses for each network
-const USDC_ADDRESSES = {
-  testnet: "0x69091fbab5f7d635ee7ac5098cf0c1efbe31d68fec0f2cd565e8d168daf52832",
-  mainnet: "0xbae207659db88bea0cbead6da0ed00aac12edcdda169e591cd41c94180b46f3b"
+// Token asset metadata addresses for each network
+const TOKEN_ADDRESSES = {
+  testnet: {
+    USDT: "0x69091fbab5f7d635ee7ac5098cf0c1efbe31d68fec0f2cd565e8d168daf52832", // Using USDC as placeholder
+    USDC: "0x69091fbab5f7d635ee7ac5098cf0c1efbe31d68fec0f2cd565e8d168daf52832",
+    WBTC: "0x69091fbab5f7d635ee7ac5098cf0c1efbe31d68fec0f2cd565e8d168daf52832", // Using USDC as placeholder
+    USDe: "0x69091fbab5f7d635ee7ac5098cf0c1efbe31d68fec0f2cd565e8d168daf52832", // Using USDC as placeholder
+    USD1: "0x69091fbab5f7d635ee7ac5098cf0c1efbe31d68fec0f2cd565e8d168daf52832", // Using USDC as placeholder
+  },
+  mainnet: {
+    USDT: "0x357b0b74bc833e95a115ad22604854d6b0fca151cecd94111770e5d6ffc9dc2b",
+    USDC: "0xbae207659db88bea0cbead6da0ed00aac12edcdda169e591cd41c94180b46f3b",
+    WBTC: "0x68844a0d7f2587e726ad0579f3d640865bb4162c08a4589eeda3f9689ec52a3d",
+    USDe: "0xf37a8864fe737eb8ec2c2931047047cbaed1beed3fb0e5b7c5526dafd3b9c2e9",
+    USD1: "0x05fabd1b12e39967a3c24e91b7b8f67719a6dacee74f3c8b9fb7d93e855437d2",
+  }
 }
 
 const DEFAULT_TOKENS: Token[] = [
   {
+    symbol: "USDT",
+    name: "Tether USD",
+    decimals: 6,
+    assetType: TOKEN_ADDRESSES.mainnet.USDT,
+    logo: "https://cryptologos.cc/logos/tether-usdt-logo.png?v=029",
+    coingeckoId: "tether"
+  },
+  {
     symbol: "USDC",
     name: "USD Coin",
     decimals: 6,
-    assetType: USDC_ADDRESSES.testnet,
-    logo: "https://raw.githubusercontent.com/trustwallet/assets/master/blockchains/ethereum/assets/0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48/logo.png"
+    assetType: TOKEN_ADDRESSES.mainnet.USDC,
+    logo: "https://cryptologos.cc/logos/usd-coin-usdc-logo.png?v=029",
+    coingeckoId: "usd-coin"
+  },
+  {
+    symbol: "WBTC",
+    name: "Wrapped Bitcoin",
+    decimals: 8,
+    assetType: TOKEN_ADDRESSES.mainnet.WBTC,
+    logo: "https://cryptologos.cc/logos/wrapped-bitcoin-wbtc-logo.png?v=029",
+    coingeckoId: "wrapped-bitcoin"
+  },
+  {
+    symbol: "USDe",
+    name: "Ethena USDe",
+    decimals: 6,
+    assetType: TOKEN_ADDRESSES.mainnet.USDe,
+    logo: "https://cryptologos.cc/logos/ethena-usde-usde-logo.png?v=040",
+    coingeckoId: "ethena-usde"
+  },
+  {
+    symbol: "USD1",
+    name: "World Liberty Financial USD",
+    decimals: 6,
+    assetType: TOKEN_ADDRESSES.mainnet.USD1,
+    logo: "https://assets.panora.exchange/tokens/aptos/USD1.png",
+    coingeckoId: "anzen-usd1"
   },
 ]
 
-export function TransferForm({ walletAddress, onSuccess, onError, onAPICall, onNetworkChange }: TransferFormProps) {
+export function TransferForm({ walletAddress, onSuccess, onError, onNetworkChange, initialToken }: TransferFormProps) {
   const { account, connected, signTransaction } = useWallet()
   const [recipient, setRecipient] = useState("")
   const [amount, setAmount] = useState("")
   const [tokens, setTokens] = useState<Token[]>(DEFAULT_TOKENS)
-  const [selectedToken, setSelectedToken] = useState<Token>(DEFAULT_TOKENS[0])
+  // Use initialToken if provided, otherwise default
+  const [selectedToken, setSelectedToken] = useState<Token>(initialToken || DEFAULT_TOKENS[0])
   const [network, setNetwork] = useState<"testnet" | "mainnet">("mainnet")
   const [isLoading, setIsLoading] = useState(false)
   const [isFetchingBalances, setIsFetchingBalances] = useState(false)
   const [feeEstimate, setFeeEstimate] = useState<number | null>(null)
   const [isEstimatingFee, setIsEstimatingFee] = useState(false)
   const [feeEstimateError, setFeeEstimateError] = useState<string | null>(null)
+  const [tokenPrice, setTokenPrice] = useState<number | null>(null)
   const { toast } = useToast()
 
   // Helper function to validate Aptos address
@@ -67,11 +116,69 @@ export function TransferForm({ walletAddress, onSuccess, onError, onAPICall, onN
     return address.startsWith("0x") && address.length === 66
   }
 
+  // Fetch token price from CoinGecko
+  const fetchTokenPrice = async (token: Token) => {
+    if (!token.coingeckoId) {
+      // Fallback for stablecoins if no ID
+      if (['USDC', 'USDT', 'USD1', 'USDe'].includes(token.symbol)) {
+        setTokenPrice(1)
+        return
+      }
+      setTokenPrice(null)
+      return
+    }
+
+    try {
+      const response = await fetch(`https://api.coingecko.com/api/v3/simple/price?ids=${token.coingeckoId}&vs_currencies=usd`)
+      const data = await response.json()
+      if (data[token.coingeckoId]?.usd) {
+        setTokenPrice(data[token.coingeckoId].usd)
+      } else {
+        // Fallback for stablecoins
+        if (['USDC', 'USDT', 'USD1', 'USDe'].includes(token.symbol)) {
+          setTokenPrice(1)
+        } else {
+          setTokenPrice(null)
+        }
+      }
+    } catch (error) {
+      console.warn("Failed to fetch token price:", error)
+      // Fallback for stablecoins
+      if (['USDC', 'USDT', 'USD1', 'USDe'].includes(token.symbol)) {
+        setTokenPrice(1)
+      } else {
+        setTokenPrice(null)
+      }
+    }
+  }
+
+  // Fetch price when token changes
+  useEffect(() => {
+    fetchTokenPrice(selectedToken)
+  }, [selectedToken])
+
   // Display fee based on estimate or network default
   const fee = network === "testnet"
     ? "FREE"
     : feeEstimate !== null && typeof feeEstimate === 'number'
-      ? `$${feeEstimate.toFixed(4)}` // Show actual estimate with more precision
+      ? (() => {
+        // If we have a token price, show fee in token units
+        if (tokenPrice && tokenPrice > 0) {
+          const feeInToken = feeEstimate / tokenPrice
+          // Format with appropriate decimals based on value
+          const formattedFee = feeInToken < 0.0001
+            ? feeInToken.toExponential(4)
+            : feeInToken.toFixed(6)
+
+          return (
+            <div className="flex flex-col items-end">
+              <span className="font-semibold text-foreground">{formattedFee} {selectedToken.symbol}</span>
+              <span className="text-xs text-muted-foreground">(${feeEstimate.toFixed(4)})</span>
+            </div>
+          )
+        }
+        return `$${feeEstimate.toFixed(4)}`
+      })()
       : isEstimatingFee
         ? "Estimating..."
         : "~$0.01" // Show approximate when not estimated
@@ -163,26 +270,29 @@ export function TransferForm({ walletAddress, onSuccess, onError, onAPICall, onN
   const fetchTokenBalances = async () => {
     setIsFetchingBalances(true)
     try {
-      const balances = await getCoinBalances(walletAddress, network)
+      // Collect all FA addresses to check
+      const currentTokens = DEFAULT_TOKENS.map(token => ({
+        ...token,
+        assetType: TOKEN_ADDRESSES[network][token.symbol as keyof typeof TOKEN_ADDRESSES.testnet] || token.assetType
+      }))
+      const faAddresses = currentTokens.map(t => t.assetType)
+
+      const balances = await getCoinBalances(walletAddress, network, faAddresses)
 
       console.log("[v0] Fetched balances:", balances)
 
-      // Use the correct USDC address for the current network
-      const currentNetworkTokens = [
-        {
-          symbol: "USDC",
-          name: "USD Coin",
-          decimals: 6,
-          assetType: USDC_ADDRESSES[network],
-          logo: "https://raw.githubusercontent.com/trustwallet/assets/master/blockchains/ethereum/assets/0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48/logo.png"
-        }
-      ]
+      // Use the correct addresses for the current network
+      const currentNetworkTokens = currentTokens
 
       const tokensWithBalances: Token[] = currentNetworkTokens.map((token) => {
         const balance = balances.find((b) => b.asset_type === token.assetType)
+        // Use dynamic decimals if available, otherwise fallback to token config
+        const decimals = balance?.metadata?.decimals ?? token.decimals
+
         return {
           ...token,
-          balance: balance ? (Number(balance.amount) / Math.pow(10, token.decimals)).toFixed(token.decimals) : "0",
+          decimals, // Update with real decimals
+          balance: balance ? (Number(balance.amount) / Math.pow(10, decimals)).toFixed(decimals) : "0",
         }
       })
 
@@ -190,14 +300,13 @@ export function TransferForm({ walletAddress, onSuccess, onError, onAPICall, onN
         const exists = tokensWithBalances.find((t) => t.assetType === balance.asset_type)
         if (!exists && balance.amount !== "0") {
           const symbol = parseCoinType(balance.asset_type)
+          const decimals = balance.metadata?.decimals || 8
           tokensWithBalances.push({
             symbol,
             name: symbol,
-            decimals: balance.metadata?.decimals || 8,
+            decimals,
             assetType: balance.asset_type,
-            balance: (Number(balance.amount) / Math.pow(10, balance.metadata?.decimals || 8)).toFixed(
-              balance.metadata?.decimals || 8,
-            ),
+            balance: (Number(balance.amount) / Math.pow(10, decimals)).toFixed(decimals),
           })
         }
       })
@@ -230,12 +339,13 @@ export function TransferForm({ walletAddress, onSuccess, onError, onAPICall, onN
     const newNetwork = network === "testnet" ? "mainnet" : "testnet"
     setNetwork(newNetwork)
 
-    // Update USDC asset type for the new network
+    // Update asset types for the new network
     const updatedTokens = tokens.map(token => {
-      if (token.symbol === "USDC") {
+      const newAddress = TOKEN_ADDRESSES[newNetwork][token.symbol as keyof typeof TOKEN_ADDRESSES.testnet]
+      if (newAddress) {
         return {
           ...token,
-          assetType: USDC_ADDRESSES[newNetwork]
+          assetType: newAddress
         }
       }
       return token
@@ -295,12 +405,7 @@ export function TransferForm({ walletAddress, onSuccess, onError, onAPICall, onN
 
       const estimateResponse = await smoothSendClient.estimateFee(estimateRequest)
 
-      onAPICall({
-        endpoint: "POST /api/v1/relayer/estimate-fee",
-        request: estimateRequest,
-        response: estimateResponse,
-        timestamp: Date.now(),
-      })
+
 
       // Validate wallet connection before proceeding
       if (!connected || !account) {
@@ -332,12 +437,7 @@ export function TransferForm({ walletAddress, onSuccess, onError, onAPICall, onN
 
         const buildResponse = await smoothSendClient.sendGaslessTransaction(txRequest)
 
-        onAPICall({
-          endpoint: "POST /api/v1/relayer/gasless-transaction (Script Composer build)",
-          request: txRequest,
-          response: buildResponse,
-          timestamp: Date.now(),
-        })
+
 
         if (!buildResponse.success || !buildResponse.transactionBytes) {
           throw new Error(buildResponse.message || 'Failed to build transaction')
@@ -378,12 +478,7 @@ export function TransferForm({ walletAddress, onSuccess, onError, onAPICall, onN
 
         console.log('[SmoothSend] Submit response:', submitResponse)
 
-        onAPICall({
-          endpoint: "POST /api/v1/relayer/gasless-transaction (Script Composer submit)",
-          request: { transactionBytes: '...', authenticatorBytes: '...' },
-          response: submitResponse,
-          timestamp: Date.now(),
-        })
+
 
         if (!submitResponse.success) {
           const errorMsg = submitResponse.message || (submitResponse as any).error || 'Transaction submission failed'
@@ -481,12 +576,7 @@ export function TransferForm({ walletAddress, onSuccess, onError, onAPICall, onN
           Array.from(authenticatorBytes)
         )
 
-        onAPICall({
-          endpoint: "POST /api/v1/relayer/gasless-transaction (Testnet submit)",
-          request: { transactionBytes: '...', authenticatorBytes: '...' },
-          response: submitResponse,
-          timestamp: Date.now(),
-        })
+
 
         if (!submitResponse.success) {
           throw new Error(submitResponse.message || 'Transaction submission failed')
@@ -527,7 +617,9 @@ export function TransferForm({ walletAddress, onSuccess, onError, onAPICall, onN
   return (
     <form onSubmit={handleSubmit} className="space-y-6">
       <div className="flex items-center justify-between px-1">
-        <h3 className="text-sm font-medium text-muted-foreground uppercase tracking-wider">Send Tokens</h3>
+        <div className="flex items-center gap-2">
+          <h3 className="text-sm font-medium text-muted-foreground uppercase tracking-wider">Send Tokens</h3>
+        </div>
         <div className="flex items-center gap-2">
           <Button
             type="button"
@@ -549,12 +641,12 @@ export function TransferForm({ walletAddress, onSuccess, onError, onAPICall, onN
       <div className="space-y-4">
         <div className="space-y-2">
           <Label htmlFor="recipient" className="sr-only">Recipient Address</Label>
-          <Input
+          <Textarea
             id="recipient"
             placeholder="Recipient Address (0x...)"
             value={recipient}
-            onChange={(e) => setRecipient(e.target.value)}
-            className="phantom-input h-14 rounded-xl px-4 font-mono text-sm bg-input/50 focus:bg-input transition-colors"
+            onChange={(e: React.ChangeEvent<HTMLTextAreaElement>) => setRecipient(e.target.value)}
+            className="phantom-input min-h-[80px] rounded-xl px-4 py-3 font-mono text-sm bg-input/50 focus:bg-input transition-colors resize-none"
             required
           />
         </div>
@@ -570,7 +662,7 @@ export function TransferForm({ walletAddress, onSuccess, onError, onAPICall, onN
                 pattern="[0-9]*\.?[0-9]*"
                 placeholder="0.00"
                 value={amount}
-                onChange={(e) => {
+                onChange={(e: React.ChangeEvent<HTMLInputElement>) => {
                   // Allow decimals and handle input validation
                   const value = e.target.value
                   // Only allow numbers and one decimal point

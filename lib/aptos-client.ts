@@ -13,66 +13,89 @@ interface CoinBalance {
   }
 }
 
-export async function getCoinBalances(address: string, network: "testnet" | "mainnet") {
+export async function getCoinBalances(address: string, network: "testnet" | "mainnet", faAddresses: string[] = []) {
   const nodeUrl = getAptosNodeUrl(network)
 
   try {
     const coinBalances: CoinBalance[] = []
 
     // 1. Get old Coin standard balances (APT uses this)
-    const resourcesResponse = await fetch(`${nodeUrl}/accounts/${address}/resources`)
-    
-    if (!resourcesResponse.ok) {
-      throw new Error(`Failed to fetch resources: ${resourcesResponse.statusText}`)
+    try {
+      const resourcesResponse = await fetch(`${nodeUrl}/accounts/${address}/resources`)
+
+      if (resourcesResponse.ok) {
+        const resources = await resourcesResponse.json()
+
+        resources
+          .filter((resource: any) => resource.type.includes("::coin::CoinStore<"))
+          .forEach((resource: any) => {
+            const coinType = resource.type.match(/<(.+)>/)?.[1] || ""
+            coinBalances.push({
+              asset_type: coinType,
+              amount: resource.data.coin.value,
+              metadata: { decimals: 8 } // APT uses 8 decimals
+            })
+          })
+      }
+    } catch (e) {
+      console.warn("Failed to fetch CoinStore resources:", e)
     }
 
-    const resources = await resourcesResponse.json()
-    
-    resources
-      .filter((resource: any) => resource.type.includes("::coin::CoinStore<"))
-      .forEach((resource: any) => {
-        const coinType = resource.type.match(/<(.+)>/)?.[1] || ""
-        coinBalances.push({
-          asset_type: coinType,
-          amount: resource.data.coin.value,
-          metadata: { decimals: 8 } // APT uses 8 decimals
-        })
-      })
-
-    // 2. Get USDC balance using view function (Fungible Asset standard)
+    // 2. Get FA balances for provided addresses
+    // Always include the known USDC address for the network
     const USDC_ADDRESSES = {
       testnet: "0x69091fbab5f7d635ee7ac5098cf0c1efbe31d68fec0f2cd565e8d168daf52832",
       mainnet: "0xbae207659db88bea0cbead6da0ed00aac12edcdda169e591cd41c94180b46f3b"
     }
-    
-    const usdcAddress = USDC_ADDRESSES[network as keyof typeof USDC_ADDRESSES]
-    
-    try {
-      const viewResponse = await fetch(`${nodeUrl}/view`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          function: "0x1::primary_fungible_store::balance",
-          type_arguments: ["0x1::fungible_asset::Metadata"],
-          arguments: [address, usdcAddress]
-        })
-      })
+    const defaultUsdc = USDC_ADDRESSES[network as keyof typeof USDC_ADDRESSES]
+    const addressesToCheck = [...new Set([...faAddresses, defaultUsdc])]
 
-      if (viewResponse.ok) {
-        const [balance] = await viewResponse.json()
-        if (balance && balance !== "0") {
-          coinBalances.push({
-            asset_type: usdcAddress,
-            amount: balance,
-            metadata: { decimals: 6 } // USDC uses 6 decimals
+    // Fetch in parallel
+    await Promise.all(addressesToCheck.map(async (faAddress) => {
+      if (!faAddress) return
+
+      try {
+        // Fetch balance
+        const balancePromise = fetch(`${nodeUrl}/view`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            function: "0x1::primary_fungible_store::balance",
+            type_arguments: ["0x1::fungible_asset::Metadata"],
+            arguments: [address, faAddress]
           })
+        })
+
+        // Fetch decimals
+        const decimalsPromise = fetch(`${nodeUrl}/view`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            function: "0x1::fungible_asset::decimals",
+            type_arguments: ["0x1::fungible_asset::Metadata"],
+            arguments: [faAddress]
+          })
+        })
+
+        const [balanceResponse, decimalsResponse] = await Promise.all([balancePromise, decimalsPromise])
+
+        if (balanceResponse.ok && decimalsResponse.ok) {
+          const [balance] = await balanceResponse.json()
+          const [decimals] = await decimalsResponse.json()
+          
+          if (balance !== undefined) {
+            coinBalances.push({
+              asset_type: faAddress,
+              amount: balance,
+              metadata: { decimals: Number(decimals) || 6 }
+            })
+          }
         }
+      } catch (e) {
+        // Ignore errors for individual assets
+        console.warn(`Failed to fetch data for ${faAddress}`, e)
       }
-    } catch (e) {
-      console.log("No USDC balance found or error fetching:", e)
-    }
+    }))
 
     return coinBalances
   } catch (error) {

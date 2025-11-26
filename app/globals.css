@@ -3,95 +3,102 @@
 @theme {
   --color-background: var(--background);
   --color-foreground: var(--foreground);
-  
+
   --color-card: var(--card);
   --color-card-foreground: var(--card-foreground);
-  
+
   --color-popover: var(--popover);
   --color-popover-foreground: var(--popover-foreground);
-  
+
   --color-primary: var(--primary);
   --color-primary-foreground: var(--primary-foreground);
-  
+
   --color-secondary: var(--secondary);
   --color-secondary-foreground: var(--secondary-foreground);
-  
+
   --color-muted: var(--muted);
   --color-muted-foreground: var(--muted-foreground);
-  
+
   --color-accent: var(--accent);
   --color-accent-foreground: var(--accent-foreground);
-  
+
   --color-destructive: var(--destructive);
   --color-destructive-foreground: var(--destructive-foreground);
-  
+
   --color-border: var(--border);
   --color-input: var(--input);
   --color-ring: var(--ring);
-  
+
   --radius: 1rem;
 }
 
 @layer base {
   :root {
-    /* Light Mode Palette (HSL values for better opacity support if needed, but using hex for now for simplicity) */
-    --background: #F8FAFC;
-    --foreground: #0F172A;
+    /* Deep Space Palette (Light Mode - mostly for fallback, we want dark mode default) */
+    --background: #0B0C15;
+    --foreground: #E2E8F0;
 
-    --card: #FFFFFF;
-    --card-foreground: #0F172A;
+    --card: #13141F;
+    --card-foreground: #E2E8F0;
 
-    --popover: #FFFFFF;
-    --popover-foreground: #0F172A;
+    --popover: #13141F;
+    --popover-foreground: #E2E8F0;
 
     --primary: #7595FF;
-    --primary-foreground: #F8FAFC;
+    --primary-foreground: #0B0C15;
 
-    --secondary: #F1F5F9;
-    --secondary-foreground: #0F172A;
+    --secondary: #1E2030;
+    --secondary-foreground: #E2E8F0;
 
-    --muted: #F1F5F9;
-    --muted-foreground: #64748B;
+    --muted: #1E2030;
+    --muted-foreground: #94A3B8;
 
-    --accent: #F1F5F9;
-    --accent-foreground: #0F172A;
+    --accent: #2D3142;
+    --accent-foreground: #E2E8F0;
 
     --destructive: #EF4444;
     --destructive-foreground: #F8FAFC;
 
-    --border: #E2E8F0;
-    --input: #E2E8F0;
+    --border: #2D3142;
+    --input: #1E2030;
     --ring: #7595FF;
   }
 
   .dark {
-    /* Brand Dark Palette */
-    --background: #0D0E12;
-    --foreground: #EAECF2;
+    /* Deep Space Palette (Dark Mode - Primary) */
+    --background: #0B0C15;
+    /* Deepest Void */
+    --foreground: #E2E8F0;
+    /* Starlight White */
 
-    --card: #18191E;
-    --card-foreground: #EAECF2;
+    --card: #13141F;
+    /* Dark Nebula */
+    --card-foreground: #E2E8F0;
 
-    --popover: #18191E;
-    --popover-foreground: #EAECF2;
+    --popover: #13141F;
+    --popover-foreground: #E2E8F0;
 
     --primary: #7595FF;
-    --primary-foreground: #0D0E12;
+    /* Aptos Blue */
+    --primary-foreground: #0B0C15;
 
-    --secondary: #18191E;
-    --secondary-foreground: #EAECF2;
+    --secondary: #1E2030;
+    /* Space Rock */
+    --secondary-foreground: #E2E8F0;
 
-    --muted: #2A2B35;
-    --muted-foreground: #9CA3AF;
+    --muted: #1E2030;
+    --muted-foreground: #94A3B8;
 
-    --accent: #2A2B35;
-    --accent-foreground: #EAECF2;
+    --accent: #2D3142;
+    /* Comet Tail */
+    --accent-foreground: #E2E8F0;
 
     --destructive: #EF4444;
-    --destructive-foreground: #EAECF2;
+    /* Red Giant */
+    --destructive-foreground: #E2E8F0;
 
-    --border: #2A2B35;
-    --input: #22232A;
+    --border: #2D3142;
+    --input: #1E2030;
     --ring: #7595FF;
   }
 
@@ -111,7 +118,7 @@
   }
 
   .phantom-input {
-    @apply bg-input border border-transparent focus:border-primary focus:ring-1 focus:ring-primary transition-all duration-200 text-foreground placeholder:text-muted-foreground;
+    @apply bg-input/30 border border-white/5 focus:border-primary/50 focus:ring-1 focus:ring-primary/50 transition-all duration-200 text-foreground placeholder:text-muted-foreground/50;
   }
 
   .phantom-button {
@@ -124,9 +131,10 @@
 
   .mesh-gradient {
     background-color: var(--background);
-    background-image: 
-      radial-gradient(at 0% 0%, hsla(226, 100%, 73%, 0.15) 0px, transparent 50%),
-      radial-gradient(at 100% 0%, hsla(226, 100%, 73%, 0.1) 0px, transparent 50%);
+    background-image:
+      radial-gradient(at 0% 0%, hsla(226, 100%, 73%, 0.08) 0px, transparent 50%),
+      radial-gradient(at 100% 0%, hsla(260, 100%, 73%, 0.08) 0px, transparent 50%),
+      radial-gradient(at 50% 50%, hsla(240, 100%, 73%, 0.05) 0px, transparent 50%);
   }
 }
 
