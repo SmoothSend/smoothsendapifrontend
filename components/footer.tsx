@@ -1,10 +1,11 @@
+import Link from "next/link"
 import { Github, Twitter, MessageCircle } from "lucide-react"
 
 export function Footer() {
   return (
     <footer className="border-t border-border/50 backdrop-blur-sm bg-background/50 mt-20">
       <div className="container mx-auto px-4 py-8">
-        <div className="grid md:grid-cols-3 gap-8">
+        <div className="grid md:grid-cols-4 gap-8">
           {/* Brand */}
           <div className="space-y-3">
             <h3 className="font-semibold text-lg">SmoothSend</h3>
@@ -60,6 +61,29 @@ export function Footer() {
             </ul>
           </div>
 
+          {/* Legal */}
+          <div className="space-y-3">
+            <h4 className="font-semibold text-sm">Legal</h4>
+            <ul className="space-y-2">
+              <li>
+                <Link 
+                  href="/terms"
+                  className="text-sm text-muted-foreground hover:text-foreground transition-colors"
+                >
+                  Terms of Service
+                </Link>
+              </li>
+              <li>
+                <Link 
+                  href="/privacy"
+                  className="text-sm text-muted-foreground hover:text-foreground transition-colors"
+                >
+                  Privacy Policy
+                </Link>
+              </li>
+            </ul>
+          </div>
+
           {/* Social & Contact */}
           <div className="space-y-3">
             <h4 className="font-semibold text-sm">Connect</h4>
@@ -104,7 +128,13 @@ export function Footer() {
         </div>
 
         <div className="mt-8 pt-6 border-t border-border/50 text-center text-sm text-muted-foreground">
-          <p>© {new Date().getFullYear()} SmoothSend. Built with ❤️ for the Aptos ecosystem.</p>
+          <p>
+            © {new Date().getFullYear()} SmoothSend. Built with ❤️ for the Aptos ecosystem.
+            {" · "}
+            <Link href="/terms" className="hover:text-foreground transition-colors">Terms</Link>
+            {" · "}
+            <Link href="/privacy" className="hover:text-foreground transition-colors">Privacy</Link>
+          </p>
         </div>
       </div>
     </footer>
