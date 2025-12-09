@@ -17,7 +17,7 @@ export const metadata: Metadata = {
     title: "SmoothSend - Gasless Aptos Transfers",
     description: "Send tokens on Aptos without gas fees. Experience the smoothest way to transfer assets.",
     type: "website",
-    url: "https://demo.smoothsend.xyz",
+    url: "https://aptos.smoothsend.xyz",
   },
   twitter: {
     card: "summary_large_image",
