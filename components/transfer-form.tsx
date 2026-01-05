@@ -15,6 +15,8 @@ import { getCoinBalances, parseCoinType } from "@/lib/aptos-client"
 import { useToast } from "@/hooks/use-toast"
 import { smoothSendClient, handleAPIError } from "@/lib/smoothsend"
 import { useWallet } from "@aptos-labs/wallet-adapter-react"
+import { ScriptComposerClient } from "@smoothsend/sdk"
+import { config } from "@/lib/config"
 
 type TransferFormProps = {
   walletAddress: string
@@ -96,7 +98,7 @@ const DEFAULT_TOKENS: Token[] = [
 ]
 
 export function TransferForm({ walletAddress, onSuccess, onError, onNetworkChange, initialToken }: TransferFormProps) {
-  const { account, connected, signTransaction } = useWallet()
+  const { account, connected, signTransaction, signAndSubmitTransaction } = useWallet()
   const [recipient, setRecipient] = useState("")
   const [amount, setAmount] = useState("")
   const [tokens, setTokens] = useState<Token[]>(DEFAULT_TOKENS)
@@ -159,29 +161,31 @@ export function TransferForm({ walletAddress, onSuccess, onError, onNetworkChang
 
   // Display fee based on estimate or network default
   const fee = network === "testnet"
-    ? "FREE"
-    : feeEstimate !== null && typeof feeEstimate === 'number'
-      ? (() => {
-        // If we have a token price, show fee in token units
-        if (tokenPrice && tokenPrice > 0) {
-          const feeInToken = feeEstimate / tokenPrice
-          // Format with appropriate decimals based on value
-          const formattedFee = feeInToken < 0.0001
-            ? feeInToken.toExponential(4)
-            : feeInToken.toFixed(6)
+    ? "FREE (gasless)"
+    : network === "mainnet"
+      ? "Deducted from transfer"  // Script Composer deducts fee from token
+      : feeEstimate !== null && typeof feeEstimate === 'number'
+        ? (() => {
+          // If we have a token price, show fee in token units
+          if (tokenPrice && tokenPrice > 0) {
+            const feeInToken = feeEstimate / tokenPrice
+            // Format with appropriate decimals based on value
+            const formattedFee = feeInToken < 0.0001
+              ? feeInToken.toExponential(4)
+              : feeInToken.toFixed(6)
 
-          return (
-            <div className="flex flex-col items-end">
-              <span className="font-semibold text-foreground">{formattedFee} {selectedToken.symbol}</span>
-              <span className="text-xs text-muted-foreground">(${feeEstimate.toFixed(4)})</span>
-            </div>
-          )
-        }
-        return `$${feeEstimate.toFixed(4)}`
-      })()
-      : isEstimatingFee
-        ? "Estimating..."
-        : "~$0.01" // Show approximate when not estimated
+            return (
+              <div className="flex flex-col items-end">
+                <span className="font-semibold text-foreground">{formattedFee} {selectedToken.symbol}</span>
+                <span className="text-xs text-muted-foreground">(${feeEstimate.toFixed(4)})</span>
+              </div>
+            )
+          }
+          return `$${feeEstimate.toFixed(4)}`
+        })()
+        : isEstimatingFee
+          ? "Estimating..."
+          : "~$0.01" // Show approximate when not estimated
 
   // Handle Max Button Click
   const handleMaxClick = () => {
@@ -228,12 +232,20 @@ export function TransferForm({ walletAddress, onSuccess, onError, onNetworkChang
     setFeeEstimate(null)
     setFeeEstimateError(null)
 
+    // On mainnet, we use Script Composer which calculates fees client-side (no API call needed)
+    if (network === 'mainnet') {
+      console.log('[Fee Estimation] Skipping API call on mainnet (Script Composer handles fees client-side)')
+      setFeeEstimate(null)
+      setIsEstimatingFee(false)
+      return
+    }
+
     // Only estimate if we have valid inputs
     if (!recipient || !amount || !validateAddress(recipient) || Number.parseFloat(amount) <= 0) {
       return
     }
 
-    // Debounce fee estimation by 500ms
+    // Debounce fee estimation by 500ms (testnet only - uses SDK transactionSubmitter)
     const timeoutId = setTimeout(async () => {
       setIsEstimatingFee(true)
       setFeeEstimateError(null)
@@ -392,21 +404,6 @@ export function TransferForm({ walletAddress, onSuccess, onError, onNetworkChang
       // Use Math.round to handle floating point precision issues (e.g. 1.1 * 1e6 = 1100000.0000000002)
       const amountInBaseUnits = Math.round(Number.parseFloat(amount) * Math.pow(10, selectedToken.decimals)).toString()
 
-      // Call real API to estimate fee
-      const estimateRequest = {
-        sender: walletAddress,
-        recipient,
-        amount: amountInBaseUnits, // Send base units (e.g. "1500000" for 1.5 USDC)
-        assetType: selectedToken.assetType,
-        network,
-        decimals: selectedToken.decimals,
-        symbol: selectedToken.symbol,
-      }
-
-      const estimateResponse = await smoothSendClient.estimateFee(estimateRequest)
-
-
-
       // Validate wallet connection before proceeding
       if (!connected || !account) {
         throw new Error('Wallet is not connected. Please connect your wallet first.')
@@ -417,132 +414,86 @@ export function TransferForm({ walletAddress, onSuccess, onError, onNetworkChang
       }
 
       // GASLESS TRANSACTION FLOW
-      // Mainnet: Use Script Composer (backend builds transaction with fee)
-      // Testnet: Use simple transfer (no fee)
+      // Mainnet: Use Script Composer (client-side, fee deducted from token)
+      // Testnet: Use SDK transactionSubmitter (goes through relayer, requires API key)
 
       if (network === 'mainnet') {
-        // MAINNET: Use Script Composer mode
-        console.log('[SmoothSend] Mainnet: Using Script Composer mode...')
+        // MAINNET: Use Script Composer (client-side, FREE, no credits needed)
+        console.log('[SmoothSend] Mainnet: Using Script Composer (client-side)...')
 
-        // Step 1: Build transaction on backend (includes fee calculation)
+        // Create Script Composer client
+        const scriptComposer = new ScriptComposerClient({ 
+          apiKey: config.smoothsend.apiKey || '',
+          network: 'mainnet' 
+        })
+
+        // Build transaction with fee deducted from token
         const txRequest = {
           sender: walletAddress,
           recipient,
           amount: amountInBaseUnits,
           assetType: selectedToken.assetType,
-          network,
           decimals: selectedToken.decimals,
           symbol: selectedToken.symbol,
         }
 
-        const buildResponse = await smoothSendClient.sendGaslessTransaction(txRequest)
+        console.log('[SmoothSend] Building transaction with Script Composer...')
+        const buildResult = await scriptComposer.buildTransfer(txRequest)
+        const transactionBytes = buildResult.transactionBytes
 
-
-
-        if (!buildResponse.success || !buildResponse.transactionBytes) {
-          throw new Error(buildResponse.message || 'Failed to build transaction')
-        }
-
-        console.log('[SmoothSend] Transaction built with fee:', {
-          fee: buildResponse.fee,
-          totalAmount: buildResponse.totalAmount,
-          feeBreakdown: buildResponse.feeBreakdown
-        })
-
-        // Step 2: Deserialize and sign
+        console.log('[SmoothSend] Transaction built, deserializing and signing...')
+        
+        // Import Aptos SDK for deserialization
         const { Deserializer, SimpleTransaction } = await import('@aptos-labs/ts-sdk')
-        const txBytes = new Uint8Array(buildResponse.transactionBytes)
+        
+        // Deserialize the transaction bytes back to a SimpleTransaction object
+        const txBytes = new Uint8Array(transactionBytes)
         const deserializer = new Deserializer(txBytes)
         const transaction = SimpleTransaction.deserialize(deserializer)
 
-        console.log('[SmoothSend] Signing transaction...')
-
+        console.log('[SmoothSend] Transaction deserialized, signing with wallet...')
+        
+        // Sign the transaction using wallet adapter
         const signResponse = await signTransaction({ transactionOrPayload: transaction })
-
-        console.log('[SmoothSend] Sign response:', signResponse)
-
         if (!signResponse || !signResponse.authenticator) {
           throw new Error('Failed to sign transaction')
         }
 
-        // Step 3: Submit signed transaction
-        const authenticatorBytes = signResponse.authenticator.bcsToBytes()
-
-        console.log('[SmoothSend] Submitting signed transaction...')
-
-        const submitResponse = await smoothSendClient.submitSignedTransaction(
-          buildResponse.transactionBytes,
-          Array.from(authenticatorBytes),
-          network  // ✅ Pass network parameter for submission!
-        )
-
-        console.log('[SmoothSend] Submit response:', submitResponse)
-
-
-
-        if (!submitResponse.success) {
-          const errorMsg = submitResponse.message || (submitResponse as any).error || 'Transaction submission failed'
-          console.error('[SmoothSend] Submit error:', {
-            response: submitResponse,
-            message: errorMsg
-          })
-
-          // Check if it's a sequence number error
-          if ((submitResponse as any).details && (submitResponse as any).details.includes('SEQUENCE_NUMBER_TOO_OLD')) {
-            throw new Error('Transaction expired. Please try again - your wallet sequence number changed.')
-          }
-
-          throw new Error(`Mainnet transaction failed: ${errorMsg}`)
-        }
-
-        console.log('[SmoothSend] ✅ Mainnet transaction successful!', submitResponse)
-
-        // Extract transaction hash and fee
-        const txHash = submitResponse.txnHash || submitResponse.hash || 'pending'
-
-        // Calculate fee display from the backend response
-        // The fee is in micro-USDC (6 decimals), so divide by 1,000,000
-        let feeDisplay = "$0.01" // Default fallback
-        if (buildResponse.fee) {
-          const feeInUSDC = Number(buildResponse.fee) / 1_000_000
-          feeDisplay = `$${feeInUSDC.toFixed(4)}` // Show 4 decimal places for accuracy
-        } else if (buildResponse.feeBreakdown?.totalFeeFormatted) {
-          feeDisplay = buildResponse.feeBreakdown.totalFeeFormatted
-        }
-
-        console.log('[SmoothSend] Fee calculated:', {
-          feeRaw: buildResponse.fee,
-          feeDisplay,
-          feeBreakdown: buildResponse.feeBreakdown
+        console.log('[SmoothSend] Signed! Submitting to relayer for fee payer signature...')
+        
+        // Serialize the signed authenticator
+        const authenticatorBytes = Array.from(signResponse.authenticator.bcsToBytes())
+        
+        // Submit to relayer - relayer will add fee payer signature and submit to chain
+        const result = await scriptComposer.submitSignedTransaction({
+          transactionBytes: transactionBytes,
+          authenticatorBytes: authenticatorBytes,
         })
 
+        console.log('[SmoothSend] ✅ Mainnet transaction successful!', result)
+
+        // Success!
         onSuccess({
-          hash: txHash,
+          hash: result.txHash,
           amount: `${amount} ${selectedToken.symbol}`,
           recipient,
           token: selectedToken.symbol,
-          fee: feeDisplay,
+          fee: 'Deducted from token', // Script Composer deducts fee from transferred amount
           network,
         })
 
       } else {
-        // TESTNET: Use simple transfer (no fee, relayer sponsors gas)
-        console.log('[SmoothSend] Testnet: Using simple transfer...')
+        // TESTNET: Use SDK transactionSubmitter (goes through relayer)
+        console.log('[SmoothSend] Testnet: Using SDK transactionSubmitter (gasless via relayer)...')
 
-        // Step 1: Initialize Aptos SDK with correct network
-        const { Aptos, AptosConfig, Network: AptosNetwork } = await import('@aptos-labs/ts-sdk')
-
-        // Use the correct network based on user selection
-        const aptosNetwork = AptosNetwork.TESTNET
-        const config = new AptosConfig({ network: aptosNetwork })
-        const aptos = new Aptos(config)
-
-        console.log('[SmoothSend] Building transaction with fee payer for', network, '...')
-
-        // Step 2: Build transaction on frontend with withFeePayer flag
-        const rawTransaction = await aptos.transaction.build.simple({
-          sender: account.address,
-          withFeePayer: true, // Critical: This enables gasless transactions
+        // The transactionSubmitter is configured in WalletProvider
+        // Just use signAndSubmitTransaction and SDK handles gasless automatically!
+        if (!signAndSubmitTransaction) {
+          throw new Error('Wallet does not support signAndSubmitTransaction')
+        }
+        
+        // Build transaction data
+        const transactionData = {
           data: {
             function: selectedToken.symbol === "APT"
               ? "0x1::aptos_account::transfer"
@@ -554,50 +505,31 @@ export function TransferForm({ walletAddress, onSuccess, onError, onNetworkChang
               ? [recipient, amountInBaseUnits]
               : [selectedToken.assetType, recipient, amountInBaseUnits]
           }
-        })
-
-        console.log('[SmoothSend] Signing transaction...')
-
-        // Step 3: Sign the transaction
-        const signResponse = await signTransaction({ transactionOrPayload: rawTransaction })
-
-        if (!signResponse || !signResponse.authenticator) {
-          throw new Error('Failed to sign transaction')
         }
 
-        console.log('[SmoothSend] Serializing and submitting...')
+        console.log('[SmoothSend] Submitting gasless transaction...')
 
-        // Step 4: Serialize and submit
-        const transactionBytes = rawTransaction.bcsToBytes()
-        const authenticatorBytes = signResponse.authenticator.bcsToBytes()
+        // SDK's transactionSubmitter automatically makes it gasless!
+        const txResponse = await signAndSubmitTransaction(transactionData)
+        const txHash = txResponse.hash
 
-        const submitResponse = await smoothSendClient.submitSignedTransaction(
-          Array.from(transactionBytes),
-          Array.from(authenticatorBytes)
-        )
+        console.log('[SmoothSend] ✅ Testnet gasless transaction successful!', txHash)
 
+        // Wait for confirmation
+        const { Aptos, AptosConfig, Network } = await import('@aptos-labs/ts-sdk')
+        const aptos = new Aptos(new AptosConfig({ network: Network.TESTNET }))
+        await aptos.waitForTransaction({ transactionHash: txHash })
 
-
-        if (!submitResponse.success) {
-          throw new Error(submitResponse.message || 'Transaction submission failed')
-        }
-
-        console.log('[SmoothSend] ✅ Testnet transaction successful!', submitResponse)
-
-        // Extract transaction hash
-        const txHash = submitResponse.txnHash || submitResponse.hash || 'pending'
-
+        // Success!
         onSuccess({
           hash: txHash,
           amount: `${amount} ${selectedToken.symbol}`,
           recipient,
           token: selectedToken.symbol,
-          fee: "FREE",
+          fee: 'FREE (Gasless)',
           network,
         })
       }
-
-
 
       // Reset form
       setRecipient("")
@@ -605,9 +537,9 @@ export function TransferForm({ walletAddress, onSuccess, onError, onNetworkChang
 
       // Refresh balances after successful transaction
       setTimeout(() => fetchTokenBalances(), 2000)
-    } catch (err) {
-      // Use handleAPIError utility for user-friendly error messages
-      const errorMessage = handleAPIError(err)
+    } catch (error: any) {
+      console.error('[SmoothSend] Transaction error:', error)
+      const errorMessage = handleAPIError(error)
       onError(errorMessage)
     } finally {
       setIsLoading(false)

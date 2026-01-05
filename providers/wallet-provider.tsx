@@ -1,48 +1,54 @@
 "use client"
 
 import { AptosWalletAdapterProvider } from "@aptos-labs/wallet-adapter-react"
-import React from "react"
-import { PetraWallet } from "petra-plugin-wallet-adapter"
+import { Network } from "@aptos-labs/ts-sdk"
 import type { ReactNode } from "react"
 import { useMemo } from "react"
+import { SmoothSendTransactionSubmitter } from "@smoothsend/sdk"
+
+// Get API key from environment
+const SMOOTHSEND_API_KEY = process.env.NEXT_PUBLIC_SMOOTHSEND_API_KEY || ''
+const NETWORK = (process.env.NEXT_PUBLIC_NETWORK as 'testnet' | 'mainnet') || 'testnet'
 
 /**
- * Wallet Provider - Implements Aptos Wallet Standard (AIP-62)
+ * Wallet Provider - Implements Aptos Wallet Standard (AIP-62) with SmoothSend
  * 
- * This provider sets up wallet integration following the Aptos Wallet Standard.
- * It supports multiple wallets through a plugin architecture, ensuring interoperability
- * and allowing users to choose their preferred wallet.
+ * GASLESS STRATEGY:
+ * - **Testnet**: SDK transactionSubmitter (free gasless via relayer)
+ * - **Mainnet**: Script Composer (free, client-side, no credits needed)
+ * 
+ * Script Composer (mainnet): Deducts fee from the token being transferred
+ * SDK Relayer (testnet): Free gasless transactions for testing
  * 
  * Currently Supported Wallets:
  * - Petra Wallet (recommended)
  * 
- * To add more wallets (Martian, Pontem, Rise), install their adapter packages:
- * npm install @martianwallet/aptos-wallet-adapter
- * npm install @pontem/wallet-adapter-plugin
- * npm install @rise-wallet/wallet-adapter
- * 
- * Then add them to the wallets array below.
- * 
  * Learn more: https://aptos.dev/standards/wallets
  */
 export function WalletProvider({ children }: { children: ReactNode }) {
-  // Initialize wallet plugins
-  // Following the Aptos Wallet Standard (AIP-62) for interoperability
-  const wallets = useMemo(() => [
-    new PetraWallet(), // Primary wallet for this demo
-    // Add more wallets here as needed:
-    // new MartianWallet(),
-    // new PontemWallet(),
-    // new RiseWallet(),
-  ], [])
+  // Create transaction submitter for gasless transactions
+  // Works for both testnet (free) and mainnet (with credits)
+  const transactionSubmitter = useMemo(() => {
+    if (!SMOOTHSEND_API_KEY) {
+      console.warn('[WalletProvider] No API key - transactions will require gas')
+      return undefined
+    }
 
-  // Cast the provider to `any` to avoid stricter prop typing in the demo build
-  const AptosProviderAny: any = AptosWalletAdapterProvider as any
+    console.log(`[WalletProvider] Using SDK transactionSubmitter for ${NETWORK} (gasless)`)
+    return new SmoothSendTransactionSubmitter({
+      apiKey: SMOOTHSEND_API_KEY,
+      network: NETWORK,
+      debug: true,
+    })
+  }, [])
 
   return (
-    <AptosProviderAny
-      plugins={wallets}
-      autoConnect={true}
+    <AptosWalletAdapterProvider
+      autoConnect={false}
+      dappConfig={{
+        network: NETWORK === 'mainnet' ? Network.MAINNET : Network.TESTNET,
+        transactionSubmitter, // SDK handles gasless conversion automatically
+      }}
       onError={(error: any) => {
         console.error("[Wallet Adapter] Error:", error)
         
@@ -57,6 +63,6 @@ export function WalletProvider({ children }: { children: ReactNode }) {
       }}
     >
       {children}
-    </AptosProviderAny>
+    </AptosWalletAdapterProvider>
   )
 }

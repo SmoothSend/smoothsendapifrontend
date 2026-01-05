@@ -249,31 +249,193 @@ fee = (gasUnits × gasPrice × aptPrice) + markup
 
 ## 🛠️ Integration Guide
 
-### 1. Installation
+### Quick Start (5 minutes)
+
+#### 1. Install Dependencies
 
 ```bash
-npm install @aptos-labs/ts-sdk @aptos-labs/wallet-adapter-react
+npm install @smoothsend/sdk @aptos-labs/ts-sdk @aptos-labs/wallet-adapter-react
 ```
 
-### 2. Environment Setup
+#### 2. Environment Setup
 
 Create `.env.local`:
 
 ```env
-NEXT_PUBLIC_SMOOTHSEND_API_URL=https://proxy.smoothsend.xyz/api/v1/relayer
-NEXT_PUBLIC_SMOOTHSEND_API_KEY=pk_nogas_xxx  # Your PUBLIC key (safe for frontend)
-NEXT_PUBLIC_NETWORK=testnet
+NEXT_PUBLIC_SMOOTHSEND_API_KEY=pk_nogas_xxx  # Get from dashboard.smoothsend.xyz
+NEXT_PUBLIC_NETWORK=testnet  # or mainnet
 ```
 
-**🔑 API Key System:**
-- Get your **Public Key** (`pk_nogas_xxx`) from [dashboard.smoothsend.xyz](https://dashboard.smoothsend.xyz)
-- Public keys are safe to use in frontend applications
-- Never use your Secret Key (`sk_nogas_xxx`) in frontend code
-- See [API_KEYS.md](./API_KEYS.md) for detailed guide
+#### 3. Configure Wallet Provider
 
-**⚠️ Important:** If you're using an old API key format (`no_gas_xxx`), update to the new format for mainnet compatibility.
+```tsx
+// providers/wallet-provider.tsx
+import { AptosWalletAdapterProvider } from "@aptos-labs/wallet-adapter-react"
+import { Network } from "@aptos-labs/ts-sdk"
+import { SmoothSendTransactionSubmitter } from "@smoothsend/sdk"
+import { useMemo } from "react"
 
-### 3. Initialize Client
+const API_KEY = process.env.NEXT_PUBLIC_SMOOTHSEND_API_KEY || ''
+const NETWORK = process.env.NEXT_PUBLIC_NETWORK as 'testnet' | 'mainnet' || 'testnet'
+
+export function WalletProvider({ children }) {
+  const transactionSubmitter = useMemo(() => {
+    if (!API_KEY) return undefined
+    return new SmoothSendTransactionSubmitter({
+      apiKey: API_KEY,
+      network: NETWORK,
+      debug: true,
+    })
+  }, [])
+
+  return (
+    <AptosWalletAdapterProvider
+      autoConnect={false}
+      dappConfig={{
+        network: NETWORK === 'mainnet' ? Network.MAINNET : Network.TESTNET,
+        transactionSubmitter, // SDK handles gasless automatically!
+      }}
+    >
+      {children}
+    </AptosWalletAdapterProvider>
+  )
+}
+```
+
+#### 4. Send Gasless Transactions
+
+**Option A: TransactionSubmitter (Testnet - Simplest)**
+
+```tsx
+// Just use signAndSubmitTransaction - the SDK handles gasless automatically!
+const { signAndSubmitTransaction } = useWallet()
+
+const handleTransfer = async () => {
+  const result = await signAndSubmitTransaction({
+    data: {
+      function: "0x1::primary_fungible_store::transfer",
+      typeArguments: ["0x1::fungible_asset::Metadata"],
+      functionArguments: [assetType, recipient, amount]
+    }
+  })
+  console.log('Tx Hash:', result.hash)
+}
+```
+
+**Option B: Script Composer (Mainnet - Fee in Token)**
+
+```tsx
+import { ScriptComposerClient } from "@smoothsend/sdk"
+import { Deserializer, SimpleTransaction } from "@aptos-labs/ts-sdk"
+
+const { signTransaction } = useWallet()
+
+const handleTransfer = async () => {
+  // 1. Create Script Composer client
+  const scriptComposer = new ScriptComposerClient({ 
+    apiKey: 'pk_nogas_xxx',
+    network: 'mainnet' 
+  })
+
+  // 2. Build transaction (fee calculated automatically)
+  const { transactionBytes } = await scriptComposer.buildTransfer({
+    sender: walletAddress,
+    recipient: '0x123...',
+    amount: '1000000', // 1 USDC (6 decimals)
+    assetType: '0xbae207659db88bea0cbead6da0ed00aac12edcdda169e591cd41c94180b46f3b',
+    decimals: 6,
+    symbol: 'USDC',
+  })
+
+  // 3. Deserialize and sign with wallet
+  const txBytes = new Uint8Array(transactionBytes)
+  const transaction = SimpleTransaction.deserialize(new Deserializer(txBytes))
+  const signResponse = await signTransaction({ transactionOrPayload: transaction })
+
+  // 4. Submit to relayer (adds fee payer signature)
+  const result = await scriptComposer.submitSignedTransaction({
+    transactionBytes,
+    authenticatorBytes: Array.from(signResponse.authenticator.bcsToBytes()),
+  })
+
+  console.log('Tx Hash:', result.txHash)
+}
+```
+
+---
+
+## 💡 Choosing the Right Method
+
+| Method | Network | Fee | Best For |
+|--------|---------|-----|----------|
+| **TransactionSubmitter** | Testnet | FREE | Development, testing |
+| **TransactionSubmitter** | Mainnet | Requires credits | Paid tier users |
+| **Script Composer** | Testnet | FREE | Testing fee-in-token flow |
+| **Script Composer** | Mainnet | ~$0.01 (from token) | Free tier, production |
+
+### TransactionSubmitter vs Script Composer
+
+**TransactionSubmitter:**
+- ✅ Simplest integration (just configure wallet provider)
+- ✅ Works with any transaction type
+- ❌ Mainnet requires paid tier (relayer pays gas)
+
+**Script Composer:**
+- ✅ FREE for all tiers on mainnet
+- ✅ Fee deducted from transferred token (no APT needed)
+- ✅ Unlimited transactions
+- ❌ Only works for token transfers
+
+---
+
+## 🔧 Advanced: API Reference
+
+### ScriptComposerClient
+
+```typescript
+import { ScriptComposerClient } from "@smoothsend/sdk"
+
+const client = new ScriptComposerClient({
+  apiKey: 'pk_nogas_xxx',
+  network: 'mainnet', // or 'testnet'
+  debug: true, // optional
+})
+
+// Estimate fee before building
+const estimate = await client.estimateFee({
+  sender, recipient, amount, assetType, decimals, symbol
+})
+
+// Build transaction
+const { transactionBytes, fee, totalAmount } = await client.buildTransfer({
+  sender, recipient, amount, assetType, decimals, symbol
+})
+
+// Submit signed transaction
+const result = await client.submitSignedTransaction({
+  transactionBytes,
+  authenticatorBytes,
+})
+```
+
+### SmoothSendTransactionSubmitter
+
+```typescript
+import { SmoothSendTransactionSubmitter } from "@smoothsend/sdk"
+
+const submitter = new SmoothSendTransactionSubmitter({
+  apiKey: 'pk_nogas_xxx',
+  network: 'testnet',
+  debug: true,
+})
+
+// Pass to wallet adapter - it handles everything automatically!
+<AptosWalletAdapterProvider
+  dappConfig={{ transactionSubmitter: submitter }}
+>
+```
+
+### Legacy SmoothSendClient
 
 ```typescript
 import { SmoothSendClient } from './lib/smoothsend'
