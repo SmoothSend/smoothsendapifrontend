@@ -422,9 +422,9 @@ export function TransferForm({ walletAddress, onSuccess, onError, onNetworkChang
         console.log('[SmoothSend] Mainnet: Using Script Composer (client-side)...')
 
         // Create Script Composer client
-        const scriptComposer = new ScriptComposerClient({ 
+        const scriptComposer = new ScriptComposerClient({
           apiKey: config.smoothsend.apiKey || '',
-          network: 'mainnet' 
+          network: 'mainnet'
         })
 
         // Build transaction with fee deducted from token
@@ -442,17 +442,17 @@ export function TransferForm({ walletAddress, onSuccess, onError, onNetworkChang
         const transactionBytes = buildResult.transactionBytes
 
         console.log('[SmoothSend] Transaction built, deserializing and signing...')
-        
+
         // Import Aptos SDK for deserialization
         const { Deserializer, SimpleTransaction } = await import('@aptos-labs/ts-sdk')
-        
+
         // Deserialize the transaction bytes back to a SimpleTransaction object
         const txBytes = new Uint8Array(transactionBytes)
         const deserializer = new Deserializer(txBytes)
         const transaction = SimpleTransaction.deserialize(deserializer)
 
         console.log('[SmoothSend] Transaction deserialized, signing with wallet...')
-        
+
         // Sign the transaction using wallet adapter
         const signResponse = await signTransaction({ transactionOrPayload: transaction })
         if (!signResponse || !signResponse.authenticator) {
@@ -460,10 +460,10 @@ export function TransferForm({ walletAddress, onSuccess, onError, onNetworkChang
         }
 
         console.log('[SmoothSend] Signed! Submitting to relayer for fee payer signature...')
-        
+
         // Serialize the signed authenticator
         const authenticatorBytes = Array.from(signResponse.authenticator.bcsToBytes())
-        
+
         // Submit to relayer - relayer will add fee payer signature and submit to chain
         const result = await scriptComposer.submitSignedTransaction({
           transactionBytes: transactionBytes,
@@ -491,26 +491,25 @@ export function TransferForm({ walletAddress, onSuccess, onError, onNetworkChang
         if (!signAndSubmitTransaction) {
           throw new Error('Wallet does not support signAndSubmitTransaction')
         }
-        
-        // Build transaction data
-        const transactionData = {
-          data: {
-            function: selectedToken.symbol === "APT"
-              ? "0x1::aptos_account::transfer"
-              : "0x1::primary_fungible_store::transfer",
-            typeArguments: selectedToken.symbol === "APT"
-              ? []
-              : ["0x1::fungible_asset::Metadata"],
-            functionArguments: selectedToken.symbol === "APT"
-              ? [recipient, amountInBaseUnits]
-              : [selectedToken.assetType, recipient, amountInBaseUnits]
+
+        // Build transaction payload
+        const payload = selectedToken.symbol === "APT"
+          ? {
+            function: "0x1::aptos_account::transfer" as `${string}::${string}::${string}`,
+            typeArguments: [] as [],
+            functionArguments: [recipient, amountInBaseUnits]
           }
-        }
+          : {
+            function: "0x1::primary_fungible_store::transfer" as `${string}::${string}::${string}`,
+            typeArguments: ["0x1::fungible_asset::Metadata"] as const,
+            functionArguments: [selectedToken.assetType, recipient, amountInBaseUnits]
+          }
 
         console.log('[SmoothSend] Submitting gasless transaction...')
 
         // SDK's transactionSubmitter automatically makes it gasless!
-        const txResponse = await signAndSubmitTransaction(transactionData)
+        // @ts-ignore - Type mismatch between wallet adapter versions
+        const txResponse = await signAndSubmitTransaction({ data: payload })
         const txHash = txResponse.hash
 
         console.log('[SmoothSend] ✅ Testnet gasless transaction successful!', txHash)
