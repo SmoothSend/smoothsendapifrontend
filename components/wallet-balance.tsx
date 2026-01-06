@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from "react"
 import { useWallet } from "@aptos-labs/wallet-adapter-react"
-import { getCoinBalances, parseCoinType } from "@/lib/aptos-client"
+import { getCoinBalances } from "@/lib/aptos-client"
 import { Loader2, Wallet } from "lucide-react"
 
 // Token configuration (matching TransferForm)
@@ -41,12 +41,16 @@ export function WalletBalance() {
             const priceResponse = await fetch(`https://api.coingecko.com/api/v3/simple/price?ids=${ids}&vs_currencies=usd`)
             const prices = await priceResponse.json()
 
-            // 3. Calculate total
+            // 3. Calculate total - match by asset_type (case-insensitive)
             let total = 0
 
             for (const token of TOKENS) {
-                // Find balance for this token
-                const tokenBalance = balances.find(b => b.asset_type === token.assetType)
+                // Find balance for this token (normalize addresses for comparison)
+                const normalizedAssetType = token.assetType.toLowerCase()
+                const tokenBalance = balances.find(b => 
+                    b.asset_type.toLowerCase() === normalizedAssetType ||
+                    b.metadata?.symbol?.toUpperCase() === token.symbol
+                )
 
                 if (tokenBalance) {
                     // Use dynamic decimals if available, otherwise fallback to token config
@@ -54,6 +58,7 @@ export function WalletBalance() {
                     const amount = Number(tokenBalance.amount) / Math.pow(10, decimals)
                     const price = prices[token.coingeckoId]?.usd || (['USDT', 'USDC', 'USDe', 'USD1'].includes(token.symbol) ? 1 : 0)
                     total += amount * price
+                    console.log(`[WalletBalance] ${token.symbol}: ${amount} @ $${price} = $${amount * price}`)
                 }
             }
 

@@ -4,6 +4,7 @@ import { Header } from "@/components/header"
 import { Footer } from "@/components/footer"
 import { TransferCard } from "@/components/transfer-card"
 import { InfoSection } from "@/components/info-section"
+
 import { motion } from "framer-motion"
 
 export default function Home() {

@@ -31,7 +31,7 @@ const TOKEN_CONFIG = [
 ]
 
 export function TransferCard() {
-  const { connected, account } = useWallet()
+  const { connected, account, network } = useWallet()
   const [transaction, setTransaction] = useState<TransactionResult | null>(null)
   const [error, setError] = useState<string | null>(null)
   const [view, setView] = useState<"dashboard" | "send">("dashboard")
@@ -46,16 +46,24 @@ export function TransferCard() {
     if (connected && account?.address) {
       fetchDashboardData()
     }
-  }, [connected, account])
+  }, [connected, account, network])
 
   const fetchDashboardData = async () => {
+    // Determine current network
+    const currentNetwork = network?.name?.toLowerCase().includes("testnet") ? "testnet" : "mainnet"
+    
     // 1. Fetch Balances
     const faAddresses = TOKEN_CONFIG.map(t => t.assetType)
-    const balances = await getCoinBalances(account!.address.toString(), "mainnet", faAddresses)
+    const balances = await getCoinBalances(account!.address.toString(), currentNetwork, faAddresses)
 
     // 2. Map to Token objects
     const mappedTokens: Token[] = TOKEN_CONFIG.map(config => {
-      const balance = balances.find(b => b.asset_type === config.assetType)
+      // Match by asset_type (case-insensitive) or by symbol from metadata
+      const normalizedAssetType = config.assetType.toLowerCase()
+      const balance = balances.find(b => 
+        b.asset_type.toLowerCase() === normalizedAssetType ||
+        b.metadata?.symbol?.toUpperCase() === config.symbol
+      )
       // Use dynamic decimals if available, otherwise fallback to config
       const decimals = balance?.metadata?.decimals ?? config.decimals
 
