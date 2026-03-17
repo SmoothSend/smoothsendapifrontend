@@ -15,7 +15,6 @@ import { getCoinBalances, parseCoinType } from "@/lib/aptos-client"
 import { useToast } from "@/hooks/use-toast"
 import { smoothSendClient, handleAPIError } from "@/lib/smoothsend"
 import { useWallet } from "@aptos-labs/wallet-adapter-react"
-import { ScriptComposerClient } from "@smoothsend/sdk"
 import { config } from "@/lib/config"
 
 type TransferFormProps = {
@@ -418,62 +417,48 @@ export function TransferForm({ walletAddress, onSuccess, onError, onNetworkChang
       // Testnet: Use SDK transactionSubmitter (goes through relayer, requires API key)
 
       if (network === 'mainnet') {
-        // MAINNET: Use Script Composer (client-side, FREE, no credits needed)
-        console.log('[SmoothSend] Mainnet: Using Script Composer (client-side)...')
+        // MAINNET: Script Composer (fee-in-token). IMPORTANT: The relayer is the fee payer,
+        // so submission MUST go through SmoothSend so it can attach the fee payer signature.
+        console.log('[SmoothSend] Mainnet: Using Script Composer (fee-in-token)...')
 
-        // Create Script Composer client
-        const scriptComposer = new ScriptComposerClient({ 
-          apiKey: config.smoothsend.apiKey || '',
-          network: 'mainnet' 
-        })
-
-
-        // Build transaction with fee deducted from token
-        const txRequest = {
+        console.log('[SmoothSend] Building transaction (fee-in-token)...')
+        const build = await smoothSendClient.sendGaslessTransaction({
           sender: walletAddress,
           recipient,
           amount: amountInBaseUnits,
           assetType: selectedToken.assetType,
+          network: 'mainnet',
           decimals: selectedToken.decimals,
           symbol: selectedToken.symbol,
+        })
+
+        if (!build.transactionBytes) {
+          throw new Error(build.error || build.message || 'Failed to build transaction')
         }
 
-        console.log('[SmoothSend] Building transaction with Script Composer...')
-        const { transactionBytes } = await scriptComposer.buildTransfer(txRequest)
-        const transaction = new Uint8Array(transactionBytes)
-
         console.log('[SmoothSend] Transaction built, signing...')
-        
-        // Sign and submit using wallet adapter
-        const { Aptos, AptosConfig, Network, Deserializer, SimpleTransaction } = await import('@aptos-labs/ts-sdk')
-        const aptos = new Aptos(new AptosConfig({ network: Network.MAINNET }))
+        const { Deserializer, SimpleTransaction } = await import('@aptos-labs/ts-sdk')
+        const txBytes = new Uint8Array(build.transactionBytes)
+        const tx = SimpleTransaction.deserialize(new Deserializer(txBytes))
 
-        // Wallets expect a deserialized transaction, not raw bytes
-        const deserializer = new Deserializer(transaction)
-        const tx = SimpleTransaction.deserialize(deserializer)
-        
         const signResponse = await signTransaction({ transactionOrPayload: tx })
         if (!signResponse || !signResponse.authenticator) {
           throw new Error('Failed to sign transaction')
         }
 
-        console.log('[SmoothSend] Submitting to chain...')
-        
-        // Submit the signed transaction directly to Aptos
-        const txResponse = await aptos.transaction.submit.simple({
-          transaction: tx,
-          senderAuthenticator: signResponse.authenticator,
-        })
+        console.log('[SmoothSend] Submitting via SmoothSend (fee payer signs)...')
+        const submit = await smoothSendClient.submitSignedTransaction(
+          Array.from(txBytes),
+          Array.from(signResponse.authenticator.bcsToBytes()),
+          'mainnet'
+        )
 
-        console.log('[SmoothSend] ✅ Mainnet transaction successful!', txResponse)
+        const txHash = submit.txnHash || submit.hash
+        if (!txHash) {
+          throw new Error(submit.error || submit.message || 'Failed to submit transaction')
+        }
 
-        // Extract transaction hash
-        const txHash = txResponse.hash
-
-        // Wait for confirmation
-        const confirmedTx = await aptos.waitForTransaction({ transactionHash: txHash })
-
-        console.log('[SmoothSend] Transaction confirmed:', confirmedTx)
+        console.log('[SmoothSend] ✅ Mainnet transaction submitted!', txHash)
 
         // Success!
         onSuccess({
@@ -481,10 +466,9 @@ export function TransferForm({ walletAddress, onSuccess, onError, onNetworkChang
           amount: `${amount} ${selectedToken.symbol}`,
           recipient,
           token: selectedToken.symbol,
-          fee: 'Deducted from token', // Script Composer deducts fee from transferred amount
+          fee: 'Deducted from token',
           network,
         })
-
       } else {
         // TESTNET: Use SDK transactionSubmitter (goes through relayer)
         console.log('[SmoothSend] Testnet: Using SDK transactionSubmitter (gasless via relayer)...')
