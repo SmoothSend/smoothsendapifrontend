@@ -27,8 +27,16 @@ const NETWORK = (process.env.NEXT_PUBLIC_NETWORK as 'testnet' | 'mainnet') || 't
  */
 export function WalletProvider({ children }: { children: ReactNode }) {
   // Create transaction submitter for gasless transactions
-  // Works for both testnet (free) and mainnet (with credits)
+  // IMPORTANT:
+  // - Testnet: enable transactionSubmitter (free)
+  // - Mainnet: disable transactionSubmitter to avoid accidental credit deduction
+  //           (mainnet demo uses Script Composer fee-in-token flow)
   const transactionSubmitter = useMemo(() => {
+    if (NETWORK === 'mainnet') {
+      console.log('[WalletProvider] Mainnet: transactionSubmitter disabled (use Script Composer fee-in-token)')
+      return undefined
+    }
+
     if (!SMOOTHSEND_API_KEY) {
       console.warn('[WalletProvider] No API key - transactions will require gas')
       return undefined
