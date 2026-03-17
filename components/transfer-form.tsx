@@ -440,15 +440,19 @@ export function TransferForm({ walletAddress, onSuccess, onError, onNetworkChang
 
         console.log('[SmoothSend] Building transaction with Script Composer...')
         const { transactionBytes } = await scriptComposer.buildTransfer(txRequest)
-        const transaction = transactionBytes;
+        const transaction = new Uint8Array(transactionBytes)
 
         console.log('[SmoothSend] Transaction built, signing...')
         
         // Sign and submit using wallet adapter
-        const { Aptos, AptosConfig, Network } = await import('@aptos-labs/ts-sdk')
+        const { Aptos, AptosConfig, Network, Deserializer, SimpleTransaction } = await import('@aptos-labs/ts-sdk')
         const aptos = new Aptos(new AptosConfig({ network: Network.MAINNET }))
+
+        // Wallets expect a deserialized transaction, not raw bytes
+        const deserializer = new Deserializer(transaction)
+        const tx = SimpleTransaction.deserialize(deserializer)
         
-        const signResponse = await signTransaction({ transactionOrPayload: transaction })
+        const signResponse = await signTransaction({ transactionOrPayload: tx })
         if (!signResponse || !signResponse.authenticator) {
           throw new Error('Failed to sign transaction')
         }
@@ -457,7 +461,7 @@ export function TransferForm({ walletAddress, onSuccess, onError, onNetworkChang
         
         // Submit the signed transaction directly to Aptos
         const txResponse = await aptos.transaction.submit.simple({
-          transaction,
+          transaction: tx,
           senderAuthenticator: signResponse.authenticator,
         })
 
@@ -509,7 +513,8 @@ export function TransferForm({ walletAddress, onSuccess, onError, onNetworkChang
         console.log('[SmoothSend] Submitting gasless transaction...')
 
         // SDK's transactionSubmitter automatically makes it gasless!
-        const txResponse = await signAndSubmitTransaction(transactionData)
+        // Wallet adapter types can vary across versions; this payload shape is valid.
+        const txResponse = await signAndSubmitTransaction(transactionData as any)
         const txHash = txResponse.hash
 
         console.log('[SmoothSend] ✅ Testnet gasless transaction successful!', txHash)
